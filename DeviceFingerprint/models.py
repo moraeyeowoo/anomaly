@@ -10,6 +10,7 @@ class PacketData(models.Model):
 	device = models.ForeignKey(Device, related_name='packet_set', on_delete=models.CASCADE)
 	packet = models.TextField(default='')
 	packet_time = models.DecimalField(max_digits=32, decimal_places=32,default=0.0)
+	arrival_time = models.TimeField(auto_now=True)
 
 class TypeFingerprint(models.Model):
 	device = models.ForeignKey(Device,related_name='type_fingerprint',on_delete=models.CASCADE)
