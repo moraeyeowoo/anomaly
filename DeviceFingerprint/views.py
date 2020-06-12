@@ -55,6 +55,13 @@ def receive_packet(request):
 	serializer.save()
 	return Response(status = status.HTTP_200_OK)
 
+@api_view(['POST'])
+def echo_packet(request):
+	payload = request.data["payload"]
+	print(type(payload))
+	packet = decode_packet(payload)
+	return Response(payload, status = status.HTTP_200_OK)
+
 # choice 1. User observers and wait for 30 mins before capture
 # choice 2. Save whole packet 
 # choice 2. Lets go with choice 2
