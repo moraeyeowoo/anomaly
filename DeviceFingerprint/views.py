@@ -62,6 +62,37 @@ def receive_packet(request):
 	return Response(status = status.HTTP_200_OK)
 
 @api_view(['POST'])
+def get_packet(request, format=None):
+	b64_packet = request.data["packet"]
+	packet_time = Decimal(request.data["timestamp"])
+	packet = decode_packet(b64_packet)
+
+	try:
+		device_mac_address = packet.src
+	except:
+		return Response(status=status.HTTP_404_NOT_FOUND)
+	devices = Device.objects.filter(device_mac_address=device_mac_address)
+	if len(devices) == 0:
+		data = {"device_mac_address":device_mac_address}
+		serializer = DeviceSerializer(data=data,partial=True)
+		serializer.is_valid()
+		serializer.save()
+
+	try:
+		device = Device.objects.get(device_mac_address=pkt_src_addr)
+	except:
+		return Response(status=status.HTTP_404_NOT_FOUND)
+
+	data = {"device":device.pk, "packet":b64_packet, "packet_time":packet_time}
+	serializer = PacketSerializer(data=data)
+	if not serializer.is_valid():
+		return Response(status=status.HTTP_404_NOT_FOUND)
+	serializer.save()
+	return Response(status=status.HTTP_200_OK)
+
+
+
+@api_view(['POST'])
 def echo_packet(request):
 	payload = request.data["payload"]
 	print(type(payload))

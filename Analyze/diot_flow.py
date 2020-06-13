@@ -63,6 +63,24 @@ def timestamp_flow(pcap_packets, protocol, start, end):
         signal[index] = 1
     return signal[start:end]
 
+
+def get_timeseries(pcap_packets, protocol)
+    if protocol == 'IGMP':
+        packets = []
+        for packet in pcap_packets:
+            if IP in packet and packet.proto ==2:
+                packets.append(packet)
+    if protocol == 'SSDP':
+        packets = []
+        for packet in pcap_packets:
+            if 'NOTIFY' in str(packet) or 'MSEARCH' in str(packet):
+                packets.append(packet)
+    else:
+        packets = [pkt for pkt in pcap_packets if protocol in pkt]
+
+
+
+
 def get_candidate_Ts(timestamps, d,tolerance):
     x = timestamps
     y = fft(x)
