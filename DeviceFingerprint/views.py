@@ -7,6 +7,7 @@ from DeviceFingerprint.models import *
 from scapy.all import *
 from DeviceFingerprint.serializers import *
 
+
 def decode_packet(utf8_encoded_packet):
 	import base64
 	# decode to base 64
@@ -16,6 +17,13 @@ def decode_packet(utf8_encoded_packet):
 	# convert to scapy packet object
 	packet = Ether(bytes_encoded)
 	return packet
+
+@api_view(['GET'])
+def get_devices(request):
+	devices = Device.objects.all()
+	serializer = DeviceSerializer(devices,many=True)
+	return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 # Create your views here.
 @api_view(['POST'])
@@ -47,11 +55,9 @@ def receive_packet(request):
 		return Response(status=status.HTTP_404_NOT_FOUND)
 
 	timestamp = packet.time
-	type(timestamp)
 	data = {"device":device.pk, "packet":payload,"packet_time":timestamp }
 	serializer = PacketSerializer(data=data)
 	valid = serializer.is_valid()
-	print(valid)
 	serializer.save()
 	return Response(status = status.HTTP_200_OK)
 
@@ -60,6 +66,7 @@ def echo_packet(request):
 	payload = request.data["payload"]
 	print(type(payload))
 	packet = decode_packet(payload)
+	print(packet.time)
 	return Response(payload, status = status.HTTP_200_OK)
 
 # choice 1. User observers and wait for 30 mins before capture
@@ -74,13 +81,38 @@ def identify_device(request,pk):
 		return Response(status=status.HTTP_404_NOT_FOUND)
 
 	packets = device.packet_set.all()
+	packets = list(packets)
+	packets_b64 = [ pkt.packet for pkt in packets ]
+	packets = [ decode_packet(pkt_b64) for pkt_b64 in packets_b64 ]
 	# fingerprint
+
 
 	# call KNN model
 
+
 	# classify 
 
+
 	# return type 
+
+@api_view(['GET'])
+def save_packet(request, pk):
+	import datetime 
+	
+	device = Device.objects.get(pk=pk)
+	pkt_base64_list = device.packet_set.all()
+	suffix = str(datetime.datetime.now()).replace(":","").replace(" ","-")
+	prefix = device.device_mac_address.replace(":","")
+	filename = prefix+"-"+suffix+".pcap"
+	for pkt_base64 in pkt_base64_list:
+		pkt = decode_packet(pkt_base64.packet)
+		wrpcap(filename, pkt)
+
+	return Response(status=status.HTTP_200_OK)
+
+
+
+
 
 @api_view(['POST'])
 def label_device(request,pk):

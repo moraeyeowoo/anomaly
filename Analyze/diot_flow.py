@@ -17,7 +17,7 @@ pcap_files.sort()
 
 
 
-def timestamp_flow(pcap_packets, protocol, src_mac_addr,start, end): 
+def timestamp_flow_by_device(pcap_packets, protocol, src_mac_addr,start, end): 
     if protocol == 'IGMP':
         packets = []
         for packet in pcap_packets:
@@ -30,6 +30,29 @@ def timestamp_flow(pcap_packets, protocol, src_mac_addr,start, end):
                 packets.append(packet)
     else:
         packets = pcap_packets.filter(lambda x: protocol in x and x.src == src_mac_addr)
+    start_time = pcap_packets[0].time
+    end_time = pcap_packets[-1].time 
+    flow_duration = math.ceil(end_time - start_time)
+    indices = [math.floor(packet.time - start_time) for packet in packets]
+    signal= [0] * flow_duration
+    
+    for index in indices:
+        signal[index] = 1
+    return signal[start:end]
+
+def timestamp_flow(pcap_packets, protocol, start, end): 
+    if protocol == 'IGMP':
+        packets = []
+        for packet in pcap_packets:
+            if IP in packet and packet.proto ==2:
+                packets.append(packet)
+    if protocol == 'SSDP':
+        packets = []
+        for packet in pcap_packets:
+            if 'NOTIFY' in str(packet) or 'MSEARCH' in str(packet):
+                packets.append(packet)
+    else:
+        packets = [pkt for pkt in pcap_packets if protocol in pkt]
     start_time = pcap_packets[0].time
     end_time = pcap_packets[-1].time 
     flow_duration = math.ceil(end_time - start_time)
@@ -93,7 +116,7 @@ def get_Ts(timestamps, tolerance):
     return Ts
 
 #ARP, IGMP, ICMP,TCP,UDP,  NBNS, DNS, SSDP
-def get_periods(pcap_packets, src_mac_addr,start, end):
+def get_periods_by_device(pcap_packets, src_mac_addr,start, end):
     periods = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "NBNS":None, "DNS":None,"SSDP":None} 
     protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP"]
     for protocol in protocols:
@@ -101,6 +124,17 @@ def get_periods(pcap_packets, src_mac_addr,start, end):
         Ts = get_Ts(flow, 0.1)
         periods[protocol] = (flow, Ts)
     return periods
+
+def get_periods(pcap_packets,start, end):
+    periods = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "NBNS":None, "DNS":None,"SSDP":None} 
+    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP"]
+    for protocol in protocols:
+        flow = timestamp_flow(pcap_packets, protocol,start,end)
+        Ts = get_Ts(flow, 0.1)
+        periods[protocol] = (flow, Ts)
+    return periods
+
+
 
 def get_characteristic_metric(periods):
     metrics = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "NBNS":None, "DNS":None,"SSDP":None} 
@@ -116,7 +150,7 @@ def get_characteristic_metric(periods):
         metrics[protocol] = feature_vector
     return metrics
 
-def get_sub_periods(pcap_packets, src_mac_addr):
+def get_sub_periods_by_device(pcap_packets, src_mac_addr):
     sub_one_periods = get_periods(pcap_packets, src_mac_addr,0,900)
     sub_two_periods = get_periods(pcap_packets, src_mac_addr,450,1450)
     sub_three_periods = get_periods(pcap_packets,src_mac_addr,900,1800)
@@ -125,6 +159,17 @@ def get_sub_periods(pcap_packets, src_mac_addr):
     periods = {"sub_1":sub_one_periods, "sub_2":sub_two_periods,
         "sub_3":sub_three_periods,"all":sub_all_periods}
     return periods 
+
+def get_sub_periods(pcap_packets):
+    sub_one_periods = get_periods(pcap_packets,0,900)
+    sub_two_periods = get_periods(pcap_packets,450,1450)
+    sub_three_periods = get_periods(pcap_packets,900,1800)
+    sub_all_periods = get_periods(pcap_packets,0,1800)
+
+    periods = {"sub_1":sub_one_periods, "sub_2":sub_two_periods,
+        "sub_3":sub_three_periods,"all":sub_all_periods}
+    return periods 
+
 
 #periods that occur at least in two 
 def filter_periods(periods):

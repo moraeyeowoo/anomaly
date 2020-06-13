@@ -4,7 +4,7 @@ from DeviceFingerprint.models import *
 class DeviceSerializer(serializers.ModelSerializer):
 	class Meta:
 		model = Device
-		fields = ['device_mac_address','device_type']
+		fields = ['id','device_mac_address','device_type']
 
 class PacketSerializer(serializers.ModelSerializer):
 	class Meta:
