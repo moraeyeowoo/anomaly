@@ -40,46 +40,6 @@ def timestamp_flow_by_device(pcap_packets, protocol, src_mac_addr,start, end):
         signal[index] = 1
     return signal[start:end]
 
-def timestamp_flow(pcap_packets, protocol, start, end): 
-    if protocol == 'IGMP':
-        packets = []
-        for packet in pcap_packets:
-            if IP in packet and packet.proto ==2:
-                packets.append(packet)
-    if protocol == 'SSDP':
-        packets = []
-        for packet in pcap_packets:
-            if 'NOTIFY' in str(packet) or 'MSEARCH' in str(packet):
-                packets.append(packet)
-    else:
-        packets = [pkt for pkt in pcap_packets if protocol in pkt]
-    start_time = pcap_packets[0].time
-    end_time = pcap_packets[-1].time 
-    flow_duration = math.ceil(end_time - start_time)
-    indices = [math.floor(packet.time - start_time) for packet in packets]
-    signal= [0] * flow_duration
-    
-    for index in indices:
-        signal[index] = 1
-    return signal[start:end]
-
-
-def get_timeseries(pcap_packets, protocol)
-    if protocol == 'IGMP':
-        packets = []
-        for packet in pcap_packets:
-            if IP in packet and packet.proto ==2:
-                packets.append(packet)
-    if protocol == 'SSDP':
-        packets = []
-        for packet in pcap_packets:
-            if 'NOTIFY' in str(packet) or 'MSEARCH' in str(packet):
-                packets.append(packet)
-    else:
-        packets = [pkt for pkt in pcap_packets if protocol in pkt]
-
-
-
 
 def get_candidate_Ts(timestamps, d,tolerance):
     x = timestamps
@@ -273,10 +233,13 @@ def fingerprint(periods):
 
     # 17 # Mean(r) in [0.2:0.7]
     # number of periods with mean r in ...
+    # r is calculated for a period  flow has  multiple period 
+    # probably  means calculate mean and sd of r and rn of each flow(protocol)
+    # by averaging over periods 
 
 
 def print_period(timestamps, l):
-    n = len(timestamps)//l
+    n = len(timestamps)
     for k in range(0,n):
         low = l*k
         high =l*k+l

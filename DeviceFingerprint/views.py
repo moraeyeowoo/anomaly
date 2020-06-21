@@ -28,11 +28,10 @@ def get_devices(request):
 # Create your views here.
 @api_view(['POST'])
 def receive_packet(request):
-	payload = request.data["payload"]
-	print(type(payload))
-	packet = decode_packet(payload)
-	print(packet.time)
-
+	b64packet = request.data["b64packet"]
+	packet = decode_packet(b64packet)
+	packet_time = Decimal(request.data["packet_time"])
+	print(packet_time)
 	# get device mac address
 	try:
 		pkt_src_addr = packet.src
@@ -54,8 +53,7 @@ def receive_packet(request):
 	except:
 		return Response(status=status.HTTP_404_NOT_FOUND)
 
-	timestamp = packet.time
-	data = {"device":device.pk, "packet":payload,"packet_time":timestamp }
+	data = {"device":device.pk, "packet":b64packet,"packet_time":packet_time }
 	serializer = PacketSerializer(data=data)
 	valid = serializer.is_valid()
 	serializer.save()
@@ -94,10 +92,13 @@ def get_packet(request, format=None):
 
 @api_view(['POST'])
 def echo_packet(request):
-	payload = request.data["payload"]
+	payload = request.data["b64packet"]
 	print(type(payload))
 	packet = decode_packet(payload)
 	print(packet.time)
+	packet_time = request.data["packet_time"]
+	print(packet_time)
+
 	return Response(payload, status = status.HTTP_200_OK)
 
 # choice 1. User observers and wait for 30 mins before capture
@@ -111,13 +112,13 @@ def identify_device(request,pk):
 	except:
 		return Response(status=status.HTTP_404_NOT_FOUND)
 
-	packets = device.packet_set.all()
-	packets = list(packets)
-	packets_b64 = [ pkt.packet for pkt in packets ]
-	packets = [ decode_packet(pkt_b64) for pkt_b64 in packets_b64 ]
+	# get packet for 30 mins 
+	packets = device.packet_set.all().order_by('-packet_time')
+	end_time = packets[0].packet_time
+	packets = device.packet_set.all().filter(packet_time__gte=end_time-3600)
+
 	# fingerprint
-
-
+	filtered_packets = list(filter(lambda x:ARP in decode_packet(x.packet), list(packets))) 
 	# call KNN model
 
 

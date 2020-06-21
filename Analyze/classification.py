@@ -5,115 +5,75 @@ from scipy.fftpack import fft, ifft
 import copy
 import os
 import statistics
+from Analyze.packet_converter import *
 
 dlink1_mac = "b0:c5:54:25:1f:b6"
 dlink2_mac = "c4:12:f5:1c:8c:f1"
 dlink3_mac = "b0:c5:54:25:22:64"
 edimax1_mac = "74:da:38:4a:a9:75"
-xiaomi_mac = ""
 
-pcap_files = os.listdir("./captures")
-pcap_files.sort()
-
-"""
-step 1 : pcap _packets ---timestamps_flow--->flow
- flow is discrete signal coming from a certain mac address using certain protocol 
-
-step 2 : flow ---get_Ts---> Ts, these are periods
-
-step 3 : Ts ---->confirmTs ---->Confrired Ts 
-
- get_sub_periods() does everything in one step 
-
-
- Step 1 :  call get_sub_periods() all periods and sub periods
-
-"""
 
 """
     packets : packets filtered by mac address for 30 mins
 """
+# timeseries : flow
+# l          : period. 
+def calculate_Ryy(timeseries,l):
+    return sum( [timeseries[k]*timeseries[k-l] for k in range(l, len(timeseries))])
+
+# timeseries: flow
+# l         : period , T_i 
+def calculate_r(timeseries,l):
+    Ryy = calculate_Ryy(timeseries, l)
+    r = (l * Ryy) / len(timeseries)
+    return r 
+
+def calculate_rn(timeseries,l):
+    numerator = l*(calculate_Ryy(timeseries, l-1)+calculate_Ryy(timeseries,l)+calculate_Ryy(timeseries,l+1))
+    denominator = len(timeseries)
+    return (numerator/denominator)
+
 
 def get_time_series(packets, protocol):
 
-    packets_by_proto = []
+    filtered_packets = []
     if protocol == 'IGMP':
-        packets_by_proto = []
-        for packet in pcap_packets:
-            if IP in packet and packet.proto ==2:
-                packets.append(packet)
+        for packet in packets:
+            pcap_packet = decode_packet(packet.packet)
+            if IP in pcap_packet and pcap_packet.proto ==2:
+                filtered_packets.append(packet)
     if protocol == 'SSDP':
-        packets_by_proto = []
-        for packet in pcap_packets:
-            if 'NOTIFY' in str(packet) or 'MSEARCH' in str(packet):
-                packets.append(packet)
+        for packet in packets:
+            pcap_packet = decode_packet(packet.packet)
+            if 'NOTIFY' in str(pcap_packet) or 'MSEARCH' in str(pcap_packet):
+                filtered_packets.append(packet)
     else:
         filtered_packets = list(filter(lambda x: protocol in decode_packet(x.packet), list(packets))) 
 
     start_time = packets[0].packet_time
     duration = len(packets)
     end_time = packets[duration-1].packet_time
-    flow_duration = math.ceil(end_time - start_time)
-    indices = [ math.floor(packets.packet_time - start_time) for packet in packets]
-    zeroes = [0] * duration
+    timeseries_duration = math.ceil(end_time - start_time)
+    indices = [ math.floor(packet.packet_time - start_time) for packet in filtered_packets]
+    zeroes = [0] * timeseries_duration
     for index in indices:
         zeroes[index] = 1
     return zeroes
 
-
-def timestamp_flow(pcap_packets, protocol, src_mac_addr,start, end): 
-    if protocol == 'IGMP':
-        packets = []
-        for packet in pcap_packets:
-            if IP in packet and packet.proto ==2:
-                packets.append(packet)
-    if protocol == 'SSDP':
-        packets = []
-        for packet in pcap_packets:
-            if 'NOTIFY' in str(packet) or 'MSEARCH' in str(packet):
-                packets.append(packet)
-    else:
-        packets = pcap_packets.filter(lambda x: protocol in x and x.src == src_mac_addr)
-    start_time = pcap_packets[0].time
-    end_time = pcap_packets[-1].time 
-    flow_duration = math.ceil(end_time - start_time)
-    indices = [math.floor(packet.time - start_time) for packet in packets]
-    signal= [0] * flow_duration
-    
-    for index in indices:
-        signal[index] = 1
-    return signal[start:end]
-
-def get_candidate_Ts(timestamps, d,tolerance):
-    x = timestamps
+def get_candidate_Ts(timeseries,tolerance=0.1):
+    x = timeseries
     y = fft(x)
     y_abs = np.absolute(y)
-    indices = range(0,d)
+    indices = range(0,len(timeseries))
     Yf = [ (k, y_abs[k]) for k in indices]   
     max_frequency = max(y_abs)
     L = [ tuple for tuple in Yf if tuple[1] > tolerance * max(y_abs)]
-    candidates = [ d / tuple[0] for tuple in L if not tuple[0] == 0 ]
+    candidates = [ len(timeseries) / tuple[0] for tuple in L if not tuple[0] == 0 ]
     Ts = [ np.floor(T) for T in candidates]
     return Ts
 
-# timestamps : flow
-# l          : period. 
-def calculate_Ryy(timestamps,l):
-    return sum( [timestamps[k]*timestamps[k-l] for k in range(l, len(timestamps))])
 
-# timestamps: flow
-# l         : period , T_i 
-def calculate_r(timestamps,l):
-    Ryy = calculate_Ryy(timestamps, l)
-    r = (l * Ryy) / len(timestamps)
-    return r 
-
-def calculate_rn(timestamps,l):
-    numerator = l*(calculate_Ryy(timestamps, l-1)+calculate_Ryy(timestamps,l)+calculate_Ryy(timestamps,l+1))
-    denominator = len(timestamps)
-    return (numerator/denominator)
-
-def confirm_Ts(Ts,timestamps):
+def confirm_Ts(Ts,timeseries):
     ret = set()
     Ts = [ int(x) for x in Ts]
     for T_i in Ts:
@@ -121,41 +81,41 @@ def confirm_Ts(Ts,timestamps):
         low = int(T_i*0.9)
         high = int(T_i*1.1)
         candidates = list(range(low,high))
-        l_i = max(candidates, key=lambda x:calculate_Ryy(timestamps,x))
-        candidates_Ryy = [ calculate_Ryy(timestamps,x) for x in candidates]
+        l_i = max(candidates, key=lambda x:calculate_Ryy(timeseries,x))
+        candidates_Ryy = [ calculate_Ryy(timeseries,x) for x in candidates]
         local_max = all(map(lambda x: l_i > x, candidates_Ryy))
         if local_max:
             ret.add(l_i)
     return ret
 
-def get_Ts(timestamps, tolerance):
-    candidate_Ts = get_candidate_Ts(timestamps, len(timestamps),tolerance)
+def get_Ts(timeseries, tolerance=0.1):
+    candidate_Ts = get_candidate_Ts(timeseries,tolerance)
     removed_duplicates = set(candidate_Ts)
     removed_short = [ k for k in removed_duplicates if k>4 and k<600 ]
-    Ts = confirm_Ts(removed_short, timestamps)
-    Ts = [ T for T in Ts if calculate_r(timestamps, T)> 0.1 and calculate_r(timestamps,T)<5]
+    Ts = confirm_Ts(removed_short, timeseries)
+    Ts = [ T for T in Ts if calculate_r(timeseries, T)> 0.2 and calculate_r(timeseries,T)<5]
     return Ts
 
 #ARP, IGMP, ICMP,TCP,UDP,  NBNS, DNS, SSDP
-def get_periods(pcap_packets, src_mac_addr,start, end):
-    periods = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "NBNS":None, "DNS":None,"SSDP":None} 
+def get_periods(pcap_packets,start, end):
+    periods = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "DNS":None,"SSDP":None} 
     protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP"]
     for protocol in protocols:
-        flow = timestamp_flow(pcap_packets, protocol, src_mac_addr, start,end)
-        Ts = get_Ts(flow, 0.1)
-        periods[protocol] = (flow, Ts)
+        timeseries = get_time_series(pcap_packets, protocol)[start:end]
+        Ts = get_Ts(timeseries, 0.1)
+        periods[protocol] = (timeseries, Ts)
     return periods
 
 def get_characteristic_metric(periods):
-    metrics = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "NBNS":None, "DNS":None,"SSDP":None} 
-    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP"]
+    metrics = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "DNS":None,"SSDP":None} 
+    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP","DNS", "SSDP"]
     for protocol in protocols:
-        flow = periods[protocol][0]
+        timeseries = periods[protocol][0]
         Ts = periods[protocol][1]
         feature_vector = []
         for T in Ts:
-            r = calculate_r(flow, T)
-            rn = calculate_rn(flow, T)
+            r = calculate_r(timeseries, T)
+            rn = calculate_rn(timeseries, T)
             feature_vector.append((T,r,rn))
         metrics[protocol] = feature_vector
     return metrics
@@ -163,11 +123,11 @@ def get_characteristic_metric(periods):
 
 # periods = { "sub_1":(flow,Ts)}
 
-def get_sub_periods(pcap_packets, src_mac_addr):
-    sub_one_periods = get_periods(pcap_packets, src_mac_addr,0,900)
-    sub_two_periods = get_periods(pcap_packets, src_mac_addr,450,1450)
-    sub_three_periods = get_periods(pcap_packets,src_mac_addr,900,1800)
-    sub_all_periods = get_periods(pcap_packets, src_mac_addr,0,1800)
+def get_sub_periods(packets):
+    sub_one_periods = get_periods(packets,0,900)
+    sub_two_periods = get_periods(packets,450,1450)
+    sub_three_periods = get_periods(packets,900,1800)
+    sub_all_periods = get_periods(packets,0,1800)
 
     periods = {"sub_1":sub_one_periods, "sub_2":sub_two_periods,
         "sub_3":sub_three_periods,"all":sub_all_periods}
@@ -175,7 +135,7 @@ def get_sub_periods(pcap_packets, src_mac_addr):
 
 #periods that occur at least in two 
 def filter_periods(periods):
-    filtered_periods = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "NBNS":None, "DNS":None,"SSDP":None} 
+    filtered_periods = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None,"DNS":None,"SSDP":None} 
     protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP"]
 
     for protocol in protocols:
@@ -184,7 +144,7 @@ def filter_periods(periods):
         sub_3 = periods['sub_3'][protocol][1]
         sub_all = periods['all'][protocol][1]
         all_intervals = set(sub_1+sub_2+sub_3+sub_all)
-        flow = periods['all'][protocol][0]
+        timeseries = periods['all'][protocol][0]
         Ts = []
         for T in all_intervals:
             l = []
@@ -196,20 +156,8 @@ def filter_periods(periods):
                 print(l)
                 print(l.count(T))
                 Ts.append(T)
-        filtered_periods[protocol] = (flow,Ts)
+        filtered_periods[protocol] = (timeseries,Ts)
     return filtered_periods
-
-
-
-
-
-# features from 1 to 16 concerns only periods#
-# features from 17 to 33 concerns also characteristic metric
-# we need bin function
-def create_bin(periods):
-    # 1. filter periods
-    # 2. get metric
-    # 3. for each 
 
 
 def fingerprint(periods):
@@ -309,3 +257,13 @@ def print_period(timestamps, l):
         low = l*k
         high =l*k+l
         print(timestamps[low:high])
+
+
+# features from 1 to 16 concerns only periods#
+# features from 17 to 33 concerns also characteristic metric
+# we need bin function
+def create_bin(periods):
+    # 1. filter periods
+    # 2. get metric
+    # 3. for each 
+    pass
