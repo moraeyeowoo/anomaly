@@ -6,7 +6,8 @@ from rest_framework import status, generics,mixins
 from DeviceFingerprint.models import * 
 from scapy.all import *
 from DeviceFingerprint.serializers import *
-
+from rest_framework.renderers import TemplateHTMLRenderer
+from rest_framework import generics
 
 def decode_packet(utf8_encoded_packet):
 	import base64
@@ -18,6 +19,15 @@ def decode_packet(utf8_encoded_packet):
 	packet = Ether(bytes_encoded)
 	return packet
 
+class ControlPanel(generics.RetrieveAPIView):
+	renderer_classes = [TemplateHTMLRenderer]
+	template_name = 'index.html'
+
+	def get(self, request):
+		devices = {"device1":"mac address"}
+		return Response(devices)
+
+ 
 @api_view(['GET'])
 def get_devices(request):
 	devices = Device.objects.all()
