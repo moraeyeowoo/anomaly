@@ -1,50 +1,114 @@
 {% load rest_framework %}
 {% load bootstrap4 %}
 {% bootstrap_css %}
+<style type="text/css">
+    .sidenav {
+      height:100%;
+      width:160px;
+      position: fixed;
+      z-index:1;
+      top:0;
+      left:0;
+      background-color:#111;
+      overflow-x: :hidden;
+      padding-top:20px;
+    }
+ 
+    .sidenav a {
+      padding:6px 8px 6px 16px;
+      text-decoration: none;
+      font-size:25px;
+      color: #818181;
+      display:block;
+    }
+ 
+    .sidenav a:hover{
+      color:#f1f1f1;
+    } 
+ 
+    .main{
+      margin-left:160px;
+      padding: 0px 10px;
+    }
+ 
+  </style>
+
 <html><body>
 
-	<nav class="navbar navbar-expand-lg navbar-light bg-light">
-  <a class="navbar-brand" href="#">Connected Devices</a>
+
+<div class="sidenav">
+  <a href="#">Connected Devices</a>
+  <a href="#">Train Model</a>
+</div>
+
+<div class="main">
+  <nav class="navbar navbar-expand-lg navbar-light bg-light">
+  <h2><a class="navbar-brand" href="#"><b>List of Connected Devices</b></a></h2>
   <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
     <span class="navbar-toggler-icon"></span>
   </button>
-
-  <div class="collapse navbar-collapse" id="navbarSupportedContent">
-    <ul class="navbar-nav mr-auto">
-    <form class="form-inline my-2 my-lg-0">
-      <input class="form-control mr-sm-2" type="search" placeholder="Search" aria-label="Search">
-      <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button>
-    </form>
-  </div>
 </nav>
+
+<button type="button" class="btn btn-primary btn-lg btn-block">Renew State</button>
+
+<div>
 <table class="table">
   <thead>
     <tr>
       <th scope="col">#</th>
       <th scope="col">Mac Address</th>
       <th scope="col">Device Type</th>
+      <th scope="col">SSH Vulnerability</th>
       <th scope="col">Identify Device</th>
+      <th scope="col">Scan Port</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <th scope="row">1</th>
-      <td>Mark</td>
-      <td>Otto</td>
-      <td><button type="button" class="btn btn-danger">Danger</button></td>
+      <td>80:1f:02:d6:d5:5d</td>
+      <td>Unidentified Device</td>
+      <td>False</td>
+      <td><button type="button" class="btn btn-danger">Identify</button></td>
+      <td><button type="button" class="btn btn-primary">Scan</button></td>
     </tr>
     <tr>
       <th scope="row">2</th>
-      <td>Jacob</td>
-      <td>Thornton</td>
-      <td><button type="button" class="btn btn-danger">Danger</button></td>
+      <td>b0:c5:54:25:22:64</td>
+      <td>DLink DCS-935L</td>
+      <td>False</td>
+      <td><button type="button" class="btn btn-success">Identified</button></td>
+      <td><button type="button" class="btn btn-primary">Scan</button></td>
     </tr>
     <tr>
       <th scope="row">3</th>
-      <td>Larry</td>
-      <td>the Bird</td>
-      <td><button type="button" class="btn btn-danger">Danger</button></td>
+      <td>78:11:dc:11:72:af</td>
+      <td>Xiaomi Mijia 1080P</td>
+      <td>False</td>
+      <td><button type="button" class="btn btn-success">Identified</button></td>
+      <td><button type="button" class="btn btn-primary">Scan</button></td>
     </tr>
+    <tr>
+      <th scope="row">3</th>
+      <td>80:1f:02:d6:d5:59</td>
+      <td>EDIMAX SP-2101W</td>
+      <td>False</td>
+      <td><button type="button" class="btn btn-success">Identified</button></td>
+      <td><button type="button" class="btn btn-primary">Scan</button></td>
+    </tr>
+
+    <tr>
+      <th scope="row">3</th>
+      <td>c4:12:f5:1c:8c:f1</td>
+      <td>DLink DCH-S150</td>
+      <td>False</td>
+      <td><button type="button" class="btn btn-success">Identified</button></td>
+      <td><button type="button" class="btn btn-primary">Scan</button></td>
+    </tr>
+
+
   </tbody>
 </table>
+</div>
+</div>
 </body></html>

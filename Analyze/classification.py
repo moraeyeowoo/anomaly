@@ -1,4 +1,5 @@
 from scapy.all import * 
+from scapy.layers.http import *
 import math
 import numpy as np
 from scipy.fftpack import fft, ifft
@@ -12,6 +13,7 @@ dlink2_mac = "c4:12:f5:1c:8c:f1"
 dlink3_mac = "b0:c5:54:25:22:64"
 edimax1_mac = "74:da:38:4a:a9:75"
 
+load_layer("tls")
 
 """
     packets : packets filtered by mac address for 30 mins
@@ -47,6 +49,14 @@ def get_time_series(packets, protocol):
             pcap_packet = decode_packet(packet.packet)
             if 'NOTIFY' in str(pcap_packet) or 'MSEARCH' in str(pcap_packet):
                 filtered_packets.append(packet)
+    
+    if protocol == 'TCP':        
+        filtered_packets_1st = list(filter(lambda x: protocol in decode_packet(x.packet), list(packets)))
+        filtered_packets = list(filter(lambda x: not TLS in decode_packet(x.packet),list(filtered_packets_1st)))
+    
+    if protocol == 'MDNS':
+        filtered_packets_1st = list(filter(lambda x: DNS in decode_packet(x.packet), list(packets)))
+        filtered_packets =     list(filter(lambda x: decode_packet(x.packet).sport ==5353, list(filtered_packets_1st)))
     else:
         filtered_packets = list(filter(lambda x: protocol in decode_packet(x.packet), list(packets))) 
 
@@ -98,8 +108,8 @@ def get_Ts(timeseries, tolerance=0.1):
 
 #ARP, IGMP, ICMP,TCP,UDP,  NBNS, DNS, SSDP
 def get_periods(pcap_packets,start, end):
-    periods = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "DNS":None,"SSDP":None} 
-    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP"]
+    periods = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "DNS":None,"SSDP":None,"HTTP":None,"TLS":None, "MDNS":None} 
+    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP","HTTP", "TLS", "MDNS"]
     for protocol in protocols:
         timeseries = get_time_series(pcap_packets, protocol)[start:end]
         Ts = get_Ts(timeseries, 0.1)
@@ -107,8 +117,8 @@ def get_periods(pcap_packets,start, end):
     return periods
 
 def get_characteristic_metric(periods):
-    metrics = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "DNS":None,"SSDP":None} 
-    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP","DNS", "SSDP"]
+    metrics = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "DNS":None,"SSDP":None, "HTTP":None,"TLS":None,"MDNS":None} 
+    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP","DNS", "SSDP", "HTTP","TLS","MDNS"]
     for protocol in protocols:
         timeseries = periods[protocol][0]
         Ts = periods[protocol][1]
@@ -135,8 +145,8 @@ def get_sub_periods(packets):
 
 #periods that occur at least in two 
 def filter_periods(periods):
-    filtered_periods = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None,"DNS":None,"SSDP":None} 
-    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP"]
+    filtered_periods = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None,"DNS":None,"SSDP":None,"HTTP":None,"TLS":None,"MDNS":None} 
+    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP","HTTP","TLS","MDNS"]
 
     for protocol in protocols:
         sub_1 = periods['sub_1'][protocol][1]
@@ -147,22 +157,22 @@ def filter_periods(periods):
         timeseries = periods['all'][protocol][0]
         Ts = []
         for T in all_intervals:
+
             l = []
             l.append(T in sub_1)
             l.append(T in sub_2)
             l.append(T in sub_3)
             l.append(T in sub_all)
+            # discared inferred from less than two 
             if l.count(True)>2:
-                print(l)
-                print(l.count(T))
                 Ts.append(T)
         filtered_periods[protocol] = (timeseries,Ts)
     return filtered_periods
 
 
 def fingerprint(periods):
-    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP"]    
-    protocols_4 = ["ARP", "IGMP", "ICMP"]
+    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP","HTTP","TLS","MDNS"]    
+    protocols_4 = ["ARP", "IGMP", "ICMP","HTTP","TLS","MDNS"]
     feature_1 = 0
     L = [len(periods[protocol][1]) for protocol in protocols]
     for l in L:

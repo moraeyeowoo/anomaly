@@ -9,8 +9,11 @@ import statistics
 dlink1_mac = "b0:c5:54:25:1f:b6"
 dlink2_mac = "c4:12:f5:1c:8c:f1"
 dlink3_mac = "b0:c5:54:25:22:64"
-edimax1_mac = "74:da:38:4a:a9:75"
-xiaomi_mac = ""
+unknown = "74:da:38:4a:a9:75"
+
+edimax1_mac = "80:1f:02:d6:d5:5d"
+edimax2_mac = "80:1f:02:d6:d5:59"
+xiaomi_mac = "78:11:dc:11:72:af"
 
 pcap_files = os.listdir("./captures")
 pcap_files.sort()
@@ -236,6 +239,7 @@ def fingerprint(periods):
     # r is calculated for a period  flow has  multiple period 
     # probably  means calculate mean and sd of r and rn of each flow(protocol)
     # by averaging over periods 
+    
 
 
 def print_period(timestamps, l):
