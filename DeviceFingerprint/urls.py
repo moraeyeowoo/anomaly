@@ -8,5 +8,6 @@ urlpatterns= [
 	path('echo/', views.echo_packet, name='echo_packet'),
 	path('devices/', views.get_devices,name='devices'),
 	path('<int:pk>/savepcap/',views.save_packet, name='save_packet'),
-	path('panel/', views.ControlPanel.as_view())
+	path('panel/', views.ControlPanel.as_view()),
+	path('train/', views.TrainPanel.as_view()),
 ]

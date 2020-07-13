@@ -27,6 +27,14 @@ class ControlPanel(generics.RetrieveAPIView):
 		devices = {"device1":"mac address"}
 		return Response(devices)
 
+class TrainPanel(generics.RetrieveAPIView):
+	renderer_classes = [TemplateHTMLRenderer]
+	template_name = 'train.html'
+
+	def get(self, request):
+		devices = {"device1":"mac address"}
+		return Response(devices)
+
  
 @api_view(['GET'])
 def get_devices(request):

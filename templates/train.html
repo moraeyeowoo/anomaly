@@ -52,65 +52,66 @@
 <button type="button" class="btn btn-primary btn-lg btn-block">Renew State</button>
 
 <div>
-<table class="table">
+<table class="table table-dark">
   <thead>
     <tr>
       <th scope="col">#</th>
       <th scope="col">Mac Address</th>
       <th scope="col">Device Type</th>
-      <th scope="col">SSH Vulnerability</th>
-      <th scope="col">Identify Device</th>
-      <th scope="col">Scan Port</th>
+      <th scope="col">Packet Collected(secs)</th>
+      <th scope="col" data-checkbox="true">Include</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <th scope="row">1</th>
+      <td scope="row">1</td>
       <td>80:1f:02:d6:d5:5d</td>
       <td>Unidentified Device</td>
-      <td>False</td>
-      <td><button type="button" class="btn btn-danger">Identify</button></td>
-      <td><button type="button" class="btn btn-primary">Scan</button></td>
-    </tr>
-    <tr >
-      <th scope="row">2</th>
-      <td>b0:c5:54:25:22:64</td>
-      <td>DLink DCS-935L</td>
-      <td>False</td>
-      <td><button type="button" class="btn btn-success">Identified</button></td>
-      <td><button type="button" class="btn btn-primary">Scan</button></td>
+      <td>1823</td>
+      <td checkbox="true"><input type="checkbox" id="vehicle1" name="vehicle1" value="Bike"></td>
     </tr>
     <tr>
-      <th scope="row">3</th>
+      <td scope="row">2</td>
+      <td>b0:c5:54:25:22:64</td>
+      <td>DLink DCS-935L</td>
+      <td>1823</td>
+      <td checkbox="true"><input type="checkbox" id="vehicle1" name="vehicle1" value="Bike"></td>
+    </tr>
+    <tr>
+      <td scope="row">3</td>
       <td>78:11:dc:11:72:af</td>
       <td>Xiaomi Mijia 1080P</td>
-      <td>False</td>
-      <td><button type="button" class="btn btn-success">Identified</button></td>
-      <td><button type="button" class="btn btn-primary">Scan</button></td>
+      <td>1823</td>
+      <td checkbox="true"><input type="checkbox" id="vehicle1" name="vehicle1" value="Bike"></td>
     </tr>
     <tr>
       <th scope="row">3</th>
       <td>80:1f:02:d6:d5:59</td>
       <td>EDIMAX SP-2101W</td>
-      <td>False</td>
-      <td><button type="button" class="btn btn-success">Identified</button></td>
-      <td><button type="button" class="btn btn-primary">Scan</button></td>
+      <td>1823</td>
+      <td dcheckbox="true"><input type="checkbox" id="vehicle1" name="vehicle1" value="Bike"></td>
     </tr>
 
     <tr>
-      <th scope="row">3</th>
+      <td scope="row">3</td>
       <td>c4:12:f5:1c:8c:f1</td>
       <td>DLink DCH-S150</td>
-      <td>False</td>
-      <td><button type="button" class="btn btn-success">Identified</button></td>
-      <td><button type="button" class="btn btn-primary">Scan</button></td>
+      <td>1823</td>
+      <td checkbox="true"><input type="checkbox" id="vehicle1" name="vehicle1" value="Bike"></td>
     </tr>
 
 
   </tbody>
 </table>
-
-	</div>
+<div class="w-50 p-3" style="background-color: #eee;">
+<form>
+  <div class="form-group">
+    <label for="exampleInputEmail1">Device Type</label>
+    <input type="email" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp" placeholder="Enter Device Name">
+  </div>
+  <button type="submit" class="btn btn-primary">Label</button>
+</form>
 </div>
-</div>	
+</div>
+</div>
 </body></html>
