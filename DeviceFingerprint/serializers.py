@@ -12,6 +12,8 @@ class DeviceSerializer(serializers.ModelSerializer):
 		ret["packet_count"] = len(packets)
 		if not len(packets) == 0:
 			ret["duration"] = int(packets[-1].packet_time - packets[0].packet_time)
+		else:
+			ret["duration"]  = 0
 		return ret
 
 

@@ -20,28 +20,22 @@ def decode_packet(utf8_encoded_packet):
 	packet = Ether(bytes_encoded)
 	return packet
 
-class ControlPanel(generics.RetrieveAPIView):
-	renderer_classes = [TemplateHTMLRenderer]
-	template_name = 'index.html'
-
-	def get(self, request):
-		devices = {"device1":"mac address"}
-		return Response(devices)
-
-"""
-@api_view(['GET'])
-def get_devices(request):
-	devices = Device.objects.all()
-	serializer = DeviceSerializer(devices,many=True)
-	return Response(serializer.data, status=status.HTTP_200_OK)
-"""
-
 class DeviceList(APIView):
 
 	def get(self, request):
 		devices = Device.objects.all()
 		serializer = DeviceSerializer(devices,many=True)
 		return Response(serializer.data, status = status.HTTP_200_OK)		
+
+class ControlPanel(generics.RetrieveAPIView):
+	renderer_classes = [TemplateHTMLRenderer]
+	def get(self, request):
+		devices = Device.objects.all()
+		serializer = DeviceSerializer(devices,many=True)
+		data = serializer.data
+		devicelist = {"devices":data}
+		return Response(devicelist, template_name='index.html')
+
 
 class AnomalyPanel(generics.RetrieveAPIView):
 	renderer_classes = [TemplateHTMLRenderer]
@@ -176,14 +170,6 @@ def save_packet(request, pk):
 def label_device(request,pk):
 	return Response(status=status.HTTP_200_OK)
 
-
-class ControlPanel(generics.RetrieveAPIView):
-	renderer_classes = [TemplateHTMLRenderer]
-	template_name = 'anomaly.html'
-
-	def get(self, request):
-		devices = {"device1":"mac address"}
-		return Response(devices)
 
 class AnomalyDetail(generics.RetrieveAPIView):
 

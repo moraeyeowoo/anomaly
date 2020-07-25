@@ -37,128 +37,44 @@
 <html><body>
 
 <div class="sidenav">
-  <a href="#">Connected Devices</a>
-  <a href="#">Train Model</a>
+  <a href="#">Identify Device</a>
+  <a href="#">Detect Anomaly</a>
 </div>
 
   <div class="main">
-      <nav class="navbar navbar-expand-lg navbar-light bg-light">
-      <h2><a class="navbar-brand" href="#"><b>List of Connected Devices</b></a></h2>
-      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      </nav>
 
-      <button type="button" class="btn btn-primary btn-lg btn-block">Renew State</button>
+    <h2><a class="navbar-brand" href="#"><b>List of Connected Devices</b></a></h2>
+<table class="table table-dark">
+  <thead>
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">Mac Address</th>
+      <th scope="col">IP Address</th>
+      <th scope="col">First Capture</th>
+      <th scope="col">Capture Duration</th>
+      <th scope="col">Device Type</th>
+      <th scope="col">Identify Device</th>
+      <th scope="col">Classify Device</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for device in devices %}
+      <tr>
+        <td>{{device.id}}</td>
+        <td>{{device.device_mac_address}}</td>
+        <td>{{device.device_ip_address}}</td>
+        <td>Unknown</td>
+        <td>{{device.duration}}</td>
+        <td>{{device.device_type}}</td>
+        <td><button type="button" class="btn btn-primary">Identify</button></td>
+        <td><button type="button" class="btn btn-danger">Classify</button></td>
+      </tr>
+    {% endfor %}
 
-      <div>
-        <table class="table .table-striped">
-          <thead>
-            <tr>
-              <th scope="col">#</th>
-              <th scope="col">Mac Address</th>
-              <th scope="col">Device Type</th>
-              <th scope="col">SSH Vulnerability</th>
-              <th scope="col">Identify Device</th>
-              <th scope="col">Scan Port</th>
-              <th scope="col">Show metric</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <th scope="row">1</th>
-              <td>80:1f:02:d6:d5:5d</td>
-              <td>Unidentified Device</td>
-              <td>False</td>
-              <td><button type="button" class="btn btn-danger">Identify</button></td>
-              <td><button type="button" class="btn btn-primary">Scan</button></td>
-              <td><button type="button" class="btn btn-primary">Display</button></td>
-            </tr>
-            <tr >
-              <th scope="row">2</th>
-              <td>b0:c5:54:25:22:64</td>
-              <td>DLink DCS-935L</td>
-              <td>False</td>
-              <td><button type="button" class="btn btn-success">Identified</button></td>
-              <td><button type="button" class="btn btn-primary">Scan</button></td>
-              <td><button type="button" class="btn btn-primary">Display</button></td>
-            </tr>
-            <tr>
-              <th scope="row">3</th>
-              <td>78:11:dc:11:72:af</td>
-              <td>Xiaomi Mijia 1080P</td>
-              <td>False</td>
-              <td><button type="button" class="btn btn-success">Identified</button></td>
-              <td><button type="button" class="btn btn-primary">Scan</button></td>
-              <td><button type="button" class="btn btn-primary">Display</button></td>
-            </tr>
-            <tr>
-              <th scope="row">3</th>
-              <td>80:1f:02:d6:d5:59</td>
-              <td>EDIMAX SP-2101W</td>
-              <td>False</td>
-              <td><button type="button" class="btn btn-success">Identified</button></td>
-              <td><button type="button" class="btn btn-primary">Scan</button></td>
-              <td><button type="button" class="btn btn-primary">Display</button></td>
-            </tr>
-
-            <tr>
-              <th scope="row">3</th>
-              <td>c4:12:f5:1c:8c:f1</td>
-              <td>DLink DCH-S150</td>
-              <td>False</td>
-              <td><button type="button" class="btn btn-success">Identified</button></td>
-              <td><button type="button" class="btn btn-primary">Scan</button></td>
-                <td><button type="button" class="btn btn-primary">Display</button></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-  </div>
-
-
-<div class="container">
-  <div class="row">
-    <div class="col">
-      <div class="panel panel-default">
-        {% load static %}
-         <img src="{% static 'graphs/DLINK.png' %}" width="500" height="600"> 
-      </div>
-    </div>
-
-<div class="col">
-<div class="container">
-  <h2>  DLink DCS-935L (Traffic Periodicity)</h2>
-  <div class="panel panel-default">
-    <div class="panel-body">
-      <table class= "table" >
-          <thead>
-            <tr>
-              <th scope="col">Protocol</th>
-              <th scope="col">Metrics</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>ARP</td>
-              <td>(55, 0.61, 0.76)</td>
-            </tr>
-            <tr>
-              <td>TCP</td>
-              <td>(276, 3.68, 6.28), (55, 0.91, 1.55)</td>>
-            </tr>
-            <tr>
-              <td>TLS</td>
-              <td>(55, 0.76, 1.16)</td>>
-            </tr>
-          </tbody>
-        </table>
-    </div>
-  </div>
+  </tbody>
+</table>
 </div>
-    </div>
-  </div>
-</div>
+
 
 
 </body>
