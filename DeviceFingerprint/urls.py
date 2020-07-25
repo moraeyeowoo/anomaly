@@ -9,5 +9,5 @@ urlpatterns= [
 	path('devices/', views.get_devices,name='devices'),
 	path('<int:pk>/savepcap/',views.save_packet, name='save_packet'),
 	path('panel/', views.ControlPanel.as_view()),
-	path('train/', views.TrainPanel.as_view()),
+	path('anomaly/<int:pk>/', views.AnomalyDetail.as_view())
 ]

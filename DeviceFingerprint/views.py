@@ -9,6 +9,7 @@ from DeviceFingerprint.serializers import *
 from rest_framework.renderers import TemplateHTMLRenderer
 from rest_framework import generics
 
+
 def decode_packet(utf8_encoded_packet):
 	import base64
 	# decode to base 64
@@ -22,14 +23,6 @@ def decode_packet(utf8_encoded_packet):
 class ControlPanel(generics.RetrieveAPIView):
 	renderer_classes = [TemplateHTMLRenderer]
 	template_name = 'index.html'
-
-	def get(self, request):
-		devices = {"device1":"mac address"}
-		return Response(devices)
-
-class TrainPanel(generics.RetrieveAPIView):
-	renderer_classes = [TemplateHTMLRenderer]
-	template_name = 'train.html'
 
 	def get(self, request):
 		devices = {"device1":"mac address"}
@@ -160,10 +153,118 @@ def save_packet(request, pk):
 
 	return Response(status=status.HTTP_200_OK)
 
-
-
-
-
 @api_view(['POST'])
 def label_device(request,pk):
 	return Response(status=status.HTTP_200_OK)
+
+
+class ControlPanel(generics.RetrieveAPIView):
+	renderer_classes = [TemplateHTMLRenderer]
+	template_name = 'anomaly.html'
+
+	def get(self, request):
+		devices = {"device1":"mac address"}
+		return Response(devices)
+
+class AnomalyDetail(generics.RetrieveAPIView):
+
+	# query the last n packets and detect anomaly 
+	def get(self, request, pk):
+		ANOMALY_INPUT_COUNT = 100
+		# load model from path
+		try:
+			device = Device.objects.get(pk=pk)
+		except:
+			content = {"error":"device not found"}
+			return Response(content, status = status.HTTP_404_NOT_FOUND)
+
+		# query last n number of packets
+		detection_sequence = list(device.packet_set.order_by('pk')[:ANOMALY_INPUT_COUNT])
+		if len(detection_sequence) <= ANOMALY_INPUT_COUNT:
+			content = {"error": "not enough packets to do anomaly detection"}
+			return Response(content, status = status.HTTP_404_NOT_FOUND)
+
+		# fingerprint, convert to pytorch tensor 
+
+
+		# load model, query model, get recon error 
+		try:
+			model_path = device.anomaly_path
+		except:
+			content = {"error":"model not trained"}
+			return Response(content, status=status.HTTP_404_NOT_FOUND)
+
+
+		# return response 
+		content = {"message": "Anomaly Query"}
+		return Response(content, status = status.HTTP_200_OK)
+
+	# create a new model for anomaly, this may take long time. may need to use async  
+	def post(self, request, pk):
+		ANOMALY_TRAIN_MIN_COUNT = 1500
+		ANOMALY_INPUT_COUNT = 100
+		WINDOW_OVERLAP_SIZE = 50 
+		# create models
+		import math
+
+		try:
+			device = Device.objects.get(pk=pk)
+		except:
+			content = {"error":"device not found"}
+			return Response(content, status = status.HTTP_404_NOT_FOUND)
+
+		# query all data 
+		packets = list(device.packet_set.all())
+		if len(packets) <= ANOMALY_TRAIN_MIN_COUNT:
+			content = {"error":"not enough packets"}
+			return Response(content, status = status.HTTP_404_NOT_FOUND)
+
+		collected_count = len(packets)
+		steps = math.floor(collected_count/ANOMALY_INPUT_COUNT)
+		
+		# list of packets each length given by anomaly_input_count
+		packet_segments = []
+		for k in range(0,steps):
+			low = ANOMALY_TRAIN_MIN_COUNT *k
+			high = ANOMALY_TRAIN_MIN_COUNT *(k+1)
+			packet_segment = packets[low:high]
+			packet_segments.append(packet_segment)
+
+		# record pk of the last index 
+		high_water_mark = packets[-1].pk
+		device.anomaly_hwm = high_water_mark
+		device.save()
+
+
+
+		# train 
+
+
+		# save model 
+
+		content = {"message": "Train Model"}
+		return Response(content, status = status.HTTP_200_OK)
+
+	# update existing model 
+	def put(self, request, pk):
+
+		# load model from path
+		ANOMALY_TRAIN_MIN_COUNT = 1500
+		ANOMALY_INPUT_COUNT = 100
+		WINDOW_OVERLAP_SIZE = 50 
+		# create models
+		import math
+
+		try:
+			device = Device.objects.get(pk=pk)
+		except:
+			content = {"error":"device not found"}
+			return Response(content, status = status.HTTP_404_NOT_FOUND)
+		# query everything starting from high water mark 
+
+		# update model starting from high water mark
+
+		# save model to path 
+
+		content = {"message": "Update Model"}
+		return Response(content, status = status.HTTP_200_OK)
