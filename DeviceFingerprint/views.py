@@ -28,12 +28,31 @@ class ControlPanel(generics.RetrieveAPIView):
 		devices = {"device1":"mac address"}
 		return Response(devices)
 
- 
+"""
 @api_view(['GET'])
 def get_devices(request):
 	devices = Device.objects.all()
 	serializer = DeviceSerializer(devices,many=True)
 	return Response(serializer.data, status=status.HTTP_200_OK)
+"""
+
+class DeviceList(APIView):
+
+	def get(self, request):
+		devices = Device.objects.all()
+		serializer = DeviceSerializer(devices,many=True)
+		return Response(serializer.data, status = status.HTTP_200_OK)		
+
+class AnomalyPanel(generics.RetrieveAPIView):
+	renderer_classes = [TemplateHTMLRenderer]
+	def get(self, request):
+		devices = Device.objects.all()
+		serializer = DeviceSerializer(devices,many=True)
+		data = serializer.data
+		devicelist = {"devices":data}
+		return Response(devicelist, template_name = 'anomaly.html')		
+
+
 
 
 # Create your views here.

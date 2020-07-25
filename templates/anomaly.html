@@ -1,0 +1,84 @@
+{% load rest_framework %}
+{% load bootstrap4 %}
+{% bootstrap_css %}
+<style type="text/css">
+    .sidenav {
+      height:100%;
+      width:160px;
+      position: fixed;
+      z-index:1;
+      top:0;
+      left:0;
+      background-color:#111;
+      overflow-x: :hidden;
+      padding-top:20px;
+    }
+ 
+    .sidenav a {
+      padding:6px 8px 6px 16px;
+      text-decoration: none;
+      font-size:25px;
+      color: #818181;
+      display:block;
+    }
+ 
+    .sidenav a:hover{
+      color:#f1f1f1;
+    } 
+ 
+    .main{
+      margin-left:160px;
+      padding: 0px 10px;
+    }
+ 
+  </style>
+
+<html><body>
+
+
+<div class="sidenav">
+  <a href="#">Connected Devices</a>
+  <a href="#">Train Model</a>
+</div>
+
+<div class="main">
+  <nav class="navbar navbar-expand-lg navbar-light bg-light">
+  <h2><a class="navbar-brand" href="#"><b>List of Connected Devices</b></a></h2>
+  <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+</nav>
+
+<button type="button" class="btn btn-primary btn-lg btn-block">Renew State</button>
+
+<div>
+<table class="table table-dark">
+  <thead>
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">Mac Address</th>
+      <th scope="col">IP Address</th>
+      <th scope="col">Traffic Collected(secs)</th>
+      <th scope="col">Packet Collected(count)</th>
+      <th scope="col">Device Type</th>
+      <th scope="col">Train Baseline</th>
+      <th scope="col">Detect Anomaly</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{devicelist}}
+
+  </tbody>
+</table>
+<div class="w-50 p-3" style="background-color: #eee;">
+<form>
+  <div class="form-group">
+    <label for="exampleInputEmail1">Device Type</label>
+    <input type="email" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp" placeholder="Enter Device Name">
+  </div>
+  <button type="submit" class="btn btn-primary">Label</button>
+</form>
+</div>
+</div>
+</div>
+</body></html>
