@@ -16,6 +16,7 @@ def train_anomaly_model(device_mac_address):
 		return 'device not found'
 
 	PATH = device.anomaly_path
+
 	packet_set = device.packet_set.all()
 	if device.anomaly_hwm != -1:
 		# we have to filter
@@ -29,12 +30,26 @@ def train_anomaly_model(device_mac_address):
 	tcp_packet_symbols = get_packet_symbols(tcp_packets,device_mac_address)
 	train_dataset = torch.tensor(tcp_packet_symbols[:train_packets_count]).reshape(-1,20,1)
 
+	# get high water mark 
+	train_count = len(detection_sequence)
+	hwm = detection_sequence[train_count-1]
+	device.anomaly_hwm = hwm 
 
 	model = RecurrentAutoencoder(20,1)
 	print("--------------------")
 	train_model(model, train_dataset, 20)
 	device.model_trained = True
+
+	if PATH == None:
+		PATH = device.device_mac_address.replace(":","")+"model"
+		device.anomaly_path = PATH
+
+	torch.save(model, PATH)
+	device.model_trained = True
+	device.save()
+
 	return 'Anomaly model trained'
+
 
 @shared_task
 def create_random_user_accounts(total):
