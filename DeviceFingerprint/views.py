@@ -189,7 +189,7 @@ def label_device(request,pk):
 
 
 class AnomalyDetail(generics.RetrieveAPIView):
-
+	renderer_classes = [TemplateHTMLRenderer]
 	# query the last n packets and detect anomaly 
 	def get(self, request, pk):
 		ANOMALY_INPUT_COUNT = 100
@@ -230,12 +230,14 @@ class AnomalyDetail(generics.RetrieveAPIView):
 			content = {"error":"model not trained"}
 			return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-		prediction, losses = predict(anomaly_test_dataset)
+		prediction, losses = predict(model, anomaly_test_dataset)
 		print(prediction)
 		print(losses)
 		# return response 
-		content = {"message": "Anomaly Query"}
-		return Response(content, status = status.HTTP_200_OK)
+		content = {"message": "Anomaly Query","losses":losses}
+		device = {"device":device.device_mac_address}
+		return Response(device, template_name = 'device_anomaly.html')		
+		#return Response(content, status = status.HTTP_200_OK)
 
 	# create a new model for anomaly, this may take long time. may need to use async  
 	def post(self, request, pk):

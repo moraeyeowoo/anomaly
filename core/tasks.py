@@ -1,7 +1,7 @@
 from DeviceFingerprint.models import Device, PacketData
 from Analyze.packet_converter import *
 from Analyze.model import *
-
+import os
 from celery import shared_task
 
 
@@ -32,7 +32,7 @@ def train_anomaly_model(device_mac_address):
 
 	# get high water mark 
 	train_count = len(detection_sequence)
-	hwm = detection_sequence[train_count-1]
+	hwm = int(detection_sequence[train_count-1].pk)
 	device.anomaly_hwm = hwm 
 
 	model = RecurrentAutoencoder(20,1)
@@ -41,7 +41,8 @@ def train_anomaly_model(device_mac_address):
 	device.model_trained = True
 
 	if PATH == None:
-		PATH = device.device_mac_address.replace(":","")+"model"
+		filename = device.device_mac_address.replace(":","")+"model"
+		PATH = os.path.join("torch_models",filename)
 		device.anomaly_path = PATH
 
 	torch.save(model, PATH)
