@@ -20,4 +20,4 @@ class DeviceSerializer(serializers.ModelSerializer):
 class PacketSerializer(serializers.ModelSerializer):
 	class Meta:
 		model = PacketData
-		fields = ['device', 'packet', 'packet_time']
+		fields = ['device', 'packet', 'packet_time', 'anomaly_water', 'benign','direction']

@@ -8,7 +8,9 @@ from scapy.all import *
 from DeviceFingerprint.serializers import *
 from rest_framework.renderers import TemplateHTMLRenderer
 from rest_framework import generics
-
+from Analyze.model import *
+from Analyze.packet_converter import *
+from core.tasks import train_anomaly_model
 
 def decode_packet(utf8_encoded_packet):
 	import base64
@@ -59,6 +61,7 @@ def receive_packet(request):
 	# get device mac address
 	try:
 		pkt_src_addr = packet.src
+		pkt_dst_addr = packet.dst
 	except:
 		return Response(status=status.HTTP_404_NOT_FOUND)
 	# check if it is already in Device
@@ -72,15 +75,29 @@ def receive_packet(request):
 			return Response(status=status.HTTP_404_NOT_FOUND)
 		serializer.save()
 	# save packet 
+	# we need to save packets both originating from and headed to the device
+
+	# direction 0 is source, 1 is dst
+
 	try:
 		device = Device.objects.get(device_mac_address=pkt_src_addr)
 	except:
 		return Response(status=status.HTTP_404_NOT_FOUND)
 
-	data = {"device":device.pk, "packet":b64packet,"packet_time":packet_time }
-	serializer = PacketSerializer(data=data)
+	data = {"device":device.pk, "packet":b64packet,"packet_time":packet_time,"direction":0 }
+	serializer = PacketSerializer(data=data,partial=True)
 	valid = serializer.is_valid()
 	serializer.save()
+
+	# also save if destination address match
+	device = Device.objects.filter(device_mac_address=pkt_dst_addr)
+	if len(devices) !=0:
+		device = devices[0]
+		data = {"device":device.pk, "packet":b64packet, "packet_time":packet_time,"direction":1}
+		serializer = PacketSerializer(data=data, partial=True)
+		valid = serializer.is_valid()
+		serializer.save()
+
 	return Response(status = status.HTTP_200_OK)
 
 @api_view(['POST'])
@@ -183,23 +200,39 @@ class AnomalyDetail(generics.RetrieveAPIView):
 			content = {"error":"device not found"}
 			return Response(content, status = status.HTTP_404_NOT_FOUND)
 
-		# query last n number of packets
-		detection_sequence = list(device.packet_set.order_by('pk')[:ANOMALY_INPUT_COUNT])
+		# query last n number of packets, this works, i double checked
+		detection_sequence = device.packet_set.order_by('pk')
+		#no, this should apply to TCP packets, otherwise usesless 
 		if len(detection_sequence) <= ANOMALY_INPUT_COUNT:
 			content = {"error": "not enough packets to do anomaly detection"}
 			return Response(content, status = status.HTTP_404_NOT_FOUND)
 
-		# fingerprint, convert to pytorch tensor 
+		#detection_sequence = detection_sequence[:ANOMALY_INPUT_COUNT]
+		packets = [ decode_packet(k.packet) for k in detection_sequence ]
+		tcp_packets = [ pkt for pkt in packets if TCP in pkt ]
+		# 
 
+		tcp_packets_count = len(tcp_packets)
+		train_packets_count = math.floor(tcp_packets_count/20) * 20
+		tcp_packet_symbols = get_packet_symbols(tcp_packets,device.device_mac_address)
+
+		anomaly_test_dataset = torch.tensor(tcp_packet_symbols[:train_packets_count]).reshape(-1,20,1)
 
 		# load model, query model, get recon error 
+		if device.model_trained == False:
+			content = {"error":"model is training"}
+			return Response(content, status = status.HTTP_404_NOT_FOUND)
+
 		try:
-			model_path = device.anomaly_path
+			PATH = device.anomaly_path
+			model = torch.load(PATH)
 		except:
 			content = {"error":"model not trained"}
 			return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-
+		prediction, losses = predict(anomaly_test_dataset)
+		print(prediction)
+		print(losses)
 		# return response 
 		content = {"message": "Anomaly Query"}
 		return Response(content, status = status.HTTP_200_OK)
@@ -218,6 +251,11 @@ class AnomalyDetail(generics.RetrieveAPIView):
 			content = {"error":"device not found"}
 			return Response(content, status = status.HTTP_404_NOT_FOUND)
 
+		print("calling celery job")
+		train_anomaly_model.delay(device.device_mac_address)
+		print("called celery job")
+		
+		"""
 		# query all data 
 		packets = list(device.packet_set.all())
 		if len(packets) <= ANOMALY_TRAIN_MIN_COUNT:
@@ -228,25 +266,15 @@ class AnomalyDetail(generics.RetrieveAPIView):
 		steps = math.floor(collected_count/ANOMALY_INPUT_COUNT)
 		
 		# list of packets each length given by anomaly_input_count
+		
+		overlapping windows 
 		packet_segments = []
 		for k in range(0,steps):
 			low = ANOMALY_TRAIN_MIN_COUNT *k
 			high = ANOMALY_TRAIN_MIN_COUNT *(k+1)
 			packet_segment = packets[low:high]
 			packet_segments.append(packet_segment)
-
-		# record pk of the last index 
-		high_water_mark = packets[-1].pk
-		device.anomaly_hwm = high_water_mark
-		device.save()
-
-
-
-		# train 
-
-
-		# save model 
-
+		"""
 		content = {"message": "Train Model"}
 		return Response(content, status = status.HTTP_200_OK)
 

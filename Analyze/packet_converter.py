@@ -20,3 +20,90 @@ def decode_packet(utf8_encoded_packet):
 	# convert to scapy packet object
 	packet = Ether(bytes_encoded)
 	return packet
+
+
+def map_symbol(prev_pkt, curr_pkt, mac_address,frequent_packet_length):
+    c = [0,0,0,0,0,0]
+    # c1 direction 1 = incoming, 0 = outgoing
+    if curr_pkt.src == mac_address:
+        c[0] = 0
+    elif curr_pkt.dst == mac_address:
+        c[0] = 1
+    
+    if curr_pkt.src == mac_address:
+        # local port
+        if curr_pkt[TCP].sport in range(0,1024):
+            c[1] = 0
+        elif curr_pkt[TCP].sport in range(1024,49151):
+            c[1] = 1
+        elif curr_pkt[TCP].sport in range(49152, 65535):
+            c[1] = 2
+        # remote port
+        if curr_pkt[TCP].dport in range(0,1024):
+            c[2] = 0
+        elif curr_pkt[TCP].dport in range(1024,49151):
+            c[2] = 1
+        elif curr_pkt[TCP].dport in range(49152, 65535):
+            c[2] = 2
+         
+        
+    elif curr_pkt.dst == mac_address:
+        # local port
+        if curr_pkt[TCP].sport in range(0,1024):
+            c[1] = 0
+        elif curr_pkt[TCP].sport in range(1024,49151):
+            c[1] = 1
+        elif curr_pkt[TCP].sport in range(49152, 65535):
+            c[1] = 2
+        # remote port
+        if curr_pkt[TCP].dport in range(0,1024):
+            c[2] = 0
+        elif curr_pkt[TCP].dport in range(1024,49151):
+            c[2] = 1
+        elif curr_pkt[TCP].dport in range(49152, 65535):
+            c[2] = 2
+        
+    # packet length, we need device type to create bin for this, just use raw numbers 
+    #c[3] = float(len(curr_pkt))/100
+    if len(curr_pkt) in frequent_packet_length:
+        c[3] = frequent_packet_length.index(len(curr_pkt))
+    else:
+        c[3] = len(frequent_packet_length)
+
+    # tcp flag
+    c[4] = float(int(curr_pkt[TCP].flags)/10)
+    # #protocols icgnore
+    #c[5] = 
+    IAT = curr_pkt.time - prev_pkt.time
+    if IAT < 0.001:
+        c[5] = 0
+    elif IAT > 0.001 and IAT < 0.05:
+        c[5] = 1
+    elif IAT > 0.05:
+        c[5] = 2 
+    
+    return c
+
+def get_packet_symbols(pkts, mac_address):
+    seq = []
+    packet_lengths = []
+
+    for pkt in pkts:
+        packet_lengths.append(len(pkt))
+    from collections import Counter
+    packet_length_map = Counter(packet_lengths)
+    packet_length_tuples = []
+    
+    for key in packet_length_map:
+        val = packet_length_map[key]
+        packet_length_tuples.append((key,val))
+
+    if len(packet_length_tuples) >= 8:
+        frequent_packet_length = [k[0] for k in packet_length_tuples[:8]]
+    else:
+        frequent_packet_length = [k[0] for k in packet_length_tuples]
+
+    for k in range(0, len(pkts)-1):
+        symbols = map_symbol(pkts[k+1], pkts[k], mac_address, frequent_packet_length)
+        seq.append(symbols)
+    return seq

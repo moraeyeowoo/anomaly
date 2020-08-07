@@ -8,11 +8,15 @@ class Device(models.Model):
 	device_type = models.CharField(max_length=25,null=True)
 	anomaly_hwm = models.IntegerField(null=True)
 	anomaly_path = models.CharField(max_length=256,null=True)
+	model_trained = models.BooleanField(default=False)
 
 class PacketData(models.Model):
 	device = models.ForeignKey(Device, related_name='packet_set', on_delete=models.CASCADE)
 	packet = models.TextField(default='')
 	packet_time = models.DecimalField(max_digits=64, decimal_places=32,default=0.0)
+	anomaly_water = models.BooleanField(default=False)
+	benign = models.BooleanField(default=True)
+	direction = models.IntegerField(null=True)
 
 class TypeFingerprint(models.Model):
 	device = models.ForeignKey(Device,related_name='type_fingerprint',on_delete=models.CASCADE)
