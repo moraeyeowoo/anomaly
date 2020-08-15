@@ -12,9 +12,6 @@ dlink3_mac = "b0:c5:54:25:22:64"
 edimax1_mac = "74:da:38:4a:a9:75"
 xiaomi_mac = ""
 
-pcap_files = os.listdir("./captures")
-pcap_files.sort()
-
 """
 step 1 : pcap _packets ---timestamps_flow--->flow
  flow is discrete signal coming from a certain mac address using certain protocol 
@@ -47,6 +44,13 @@ def get_time_series(packets, protocol):
         for packet in pcap_packets:
             if 'NOTIFY' in str(packet) or 'MSEARCH' in str(packet):
                 packets.append(packet)
+
+    if protocol == 'HTTPS':
+        packets_by_proto = []
+        for packet in pcap_packets:
+            if TCP in packet:
+                if packet[TCP].sport == 443 and TLS in pcap[TCP]:
+                    packets_by_proto.append(packet)
     else:
         filtered_packets = list(filter(lambda x: protocol in decode_packet(x.packet), list(packets))) 
 
@@ -67,20 +71,40 @@ def timestamp_flow(pcap_packets, protocol, src_mac_addr,start, end):
         for packet in pcap_packets:
             if IP in packet and packet.proto ==2:
                 packets.append(packet)
-    if protocol == 'SSDP':
+    elif protocol == 'SSDP':
         packets = []
         for packet in pcap_packets:
             if 'NOTIFY' in str(packet) or 'MSEARCH' in str(packet):
                 packets.append(packet)
+
+    elif protocol == 'HTTPS':
+        packets = []
+        for packet in pcap_packets:
+            if TCP in packet:
+                if packet[TCP].sport == 443 and TLS in packet[TCP]:
+                    packets.append(packet)
+
+    elif protocol == 'MDNS':
+        packets = []
+        for packet in pcap_packets:
+            if UDP in packet:
+                if packet[UDP].sport == 5353 and DNS in packet:
+                    packets.append(packet)
     else:
         packets = pcap_packets.filter(lambda x: protocol in x and x.src == src_mac_addr)
+
     start_time = pcap_packets[0].time
     end_time = pcap_packets[-1].time 
     flow_duration = math.ceil(end_time - start_time)
     indices = [math.floor(packet.time - start_time) for packet in packets]
     signal= [0] * flow_duration
-    
+    if protocol == 'HTTPS':
+        print(indices)
+        print(packets)
+
     for index in indices:
+        if protocol == 'HTTPS':
+            print("recording 1")
         signal[index] = 1
     return signal[start:end]
 
@@ -138,8 +162,8 @@ def get_Ts(timestamps, tolerance):
 
 #ARP, IGMP, ICMP,TCP,UDP,  NBNS, DNS, SSDP
 def get_periods(pcap_packets, src_mac_addr,start, end):
-    periods = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "NBNS":None, "DNS":None,"SSDP":None} 
-    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP"]
+    periods = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "DNS":None,"SSDP":None, "HTTPS":None,"MDNS":None} 
+    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP","HTTPS","MDNS"]
     for protocol in protocols:
         flow = timestamp_flow(pcap_packets, protocol, src_mac_addr, start,end)
         Ts = get_Ts(flow, 0.1)
@@ -147,8 +171,8 @@ def get_periods(pcap_packets, src_mac_addr,start, end):
     return periods
 
 def get_characteristic_metric(periods):
-    metrics = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "NBNS":None, "DNS":None,"SSDP":None} 
-    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP"]
+    metrics = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "DNS":None,"SSDP":None, "HTTPS":None,"MDNS":None} 
+    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP", "HTTPS", "MDNS"]
     for protocol in protocols:
         flow = periods[protocol][0]
         Ts = periods[protocol][1]
@@ -175,14 +199,16 @@ def get_sub_periods(pcap_packets, src_mac_addr):
 
 #periods that occur at least in two 
 def filter_periods(periods):
-    filtered_periods = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "NBNS":None, "DNS":None,"SSDP":None} 
-    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP"]
-
+    filtered_periods = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "DNS":None,"SSDP":None, "HTTPS":None,"MDNS":None} 
+    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP", "HTTPS","MDNS"]
+    
     for protocol in protocols:
         sub_1 = periods['sub_1'][protocol][1]
         sub_2 = periods['sub_2'][protocol][1]
         sub_3 = periods['sub_3'][protocol][1]
         sub_all = periods['all'][protocol][1]
+        L = [sub_1, sub_2, sub_3,sub_all]
+
         all_intervals = set(sub_1+sub_2+sub_3+sub_all)
         flow = periods['all'][protocol][0]
         Ts = []
@@ -192,7 +218,7 @@ def filter_periods(periods):
             l.append(T in sub_2)
             l.append(T in sub_3)
             l.append(T in sub_all)
-            if l.count(True)>2:
+            if l.count(True)>1:
                 print(l)
                 print(l.count(T))
                 Ts.append(T)
@@ -210,10 +236,10 @@ def create_bin(periods):
     # 1. filter periods
     # 2. get metric
     # 3. for each 
-
+    pass
 
 def fingerprint(periods):
-    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP"]    
+    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP","HTTPS"]    
     protocols_4 = ["ARP", "IGMP", "ICMP"]
     feature_1 = 0
     L = [len(periods[protocol][1]) for protocol in protocols]
