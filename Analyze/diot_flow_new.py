@@ -269,17 +269,7 @@ def fingerprint(periods):
     L = [ protocol for protocol in protocols if len(periods[protocol][1])>1]
     feature_6 = len(L)
 
-    # feature 7,8,9 don't bother 
-
-    # 10 11, 12, don'/t bother
-
-    #
-
-    # 
-
-    # for each flow, for each periods, calculate r and rn
-    #  should be done on filtered periods instead
-    #  sum periods across all flows/ 
+    # feature 7 ~ 12 don't bother 
 
     Ts = []
     for protocol in protocols:
@@ -300,32 +290,47 @@ def fingerprint(periods):
     S = [ T for T in Ts if T>120 and T<600]
     feature_16 = len(S)
 
-
-    # 17 to 33 
-    # call 
     filtered_periods = filter_periods(periods)
     metrics = get_characteristic_metric(periods)
-    # sum accross all protocols
+    
+    # Mean(r) in [0.2; 0.7]
+    feature_17 = 0
+    # Mean(r) in [0.7; 1]
+    feature_18 = 0    
+    # Mean(r) in [1;2]
+    feature_19 = 0    
+    # Mean(r) in [2; infin]
+    feature_20 = 0    
+    # SD(r) in [0;0.02]
+    feature_21 = 0     
+    # SD(r) in [0.02;0.1]
+    feature_22 = 0
+    # SD(r) in [0.1, infin\
+    feature_23 = 0 
+    # Mean(rn) in [0.2;0.7]
+    feature_24 = 0
+    # Mean(rn) in [0.7;1]
+    feature_25 = 0
+    # Mean(rn) in [1;2]
+    feature_26 = 0
+    # Mean(rn) in [2, infin]
+    feature_27 = 0
+    # SD(rn) in [0;0.02]
+    feature_28 = 0
+    # SD(rn) in [0.02; 0.1]
+    feature_29 = 0
+    # SD(rn) in [0.1 ; infin]
+    feature_30 = 0 
 
-    # for each period, calculate mean r f
-    # standard deviation doesn't mean anything 
-
-    # 17 # Mean(r) in [0.2:0.7]
-    # mean for what? for a protocol?     
-    # average r and rn for each metric
-
-    # 18 # Mean(r) in [0.7;1] 
-    # number of peridos with mean r in [0.7;1]
-
-    # 19 # Mean r [1;2]
-
-    # 20 # Mean r [2,infinity]
-
-    # 21 # SD(r) in [0,0.02]
-
-    # 22 # SD(r) in [0.02;0.1]
-
-    # 23 # SD(r) in [0.1,infinity]
+    for key in metrics:
+        if not len(metrics[key])==0:
+            rs = [k[1] for k in metrics[key]]
+            Mean_r = np.mean(rs)
+            SD_r = np.std(rs)
+            rns = [k[2] for k in metrics[key]]
+            Mean_rn = np.mean(rns)
+            SD_rn = np.std(rns)
+        
 
 
 
