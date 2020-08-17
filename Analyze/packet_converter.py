@@ -107,3 +107,53 @@ def get_packet_symbols(pkts, mac_address):
         symbols = map_symbol(pkts[k+1], pkts[k], mac_address, frequent_packet_length)
         seq.append(symbols)
     return seq
+
+def convert_symbol_to_string(symbol):
+    c1 = symbol[0]
+    c2 = symbol[1]
+    c3 = symbol[2]
+    c4 = symbol[3]
+    c5 = int(symbol[4]*10)
+    c6 = symbol[5]
+    ret = []
+    if c1 == 0:
+        ret.append("Incoming")
+    elif c1 == 1:
+        ret.append("Outgoing")
+    
+    if c2 ==0:
+        ret.append("User Port")
+    elif c2 ==1:
+        ret.append("System Port")
+    elif c2 ==2:
+        ret.append("Other Port")
+        
+    if c3 ==0:
+        ret.append("User Port")
+    elif c3 ==1:
+        ret.append("System Port")
+    elif c3 ==2:
+        ret.append("Other Port")
+        
+    ret.append(c4*10)
+    tcp_flag_str = ""
+    if c5 & FIN:
+        tcp_flag_str+="FIN "
+    if c5 & SYN:
+        tcp_flag_str+="SYN "
+    if c5 & RST:
+        tcp_flag_str+="RST "
+    if c5 & PSH:
+        tcp_flag_str+="PSH "
+    if c5 & ACK:
+        tcp_flag_str+="ACK "
+    if c5 & URG:
+        tcp_flag_str+="URG "
+    if c5 & ECE:
+        tcp_flag_str+="ECE "
+    if c5 & CWR:
+        tcp_flag_str+="CWR "
+        
+    ret.append(tcp_flag_str)
+    
+    return ret

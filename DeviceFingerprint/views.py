@@ -329,40 +329,39 @@ class AnomalyDetailPanel(generics.RetrieveAPIView):
 
 		L = []
 		for k in range(0,steps):
-    		low = 20 *k
-    		high = 20 *(k+1)
-    		L.append(packet_symbols[low:high])
+			low = 20*k
+			high = 20 *(k+1)
+			L.append(packet_symbols[low:high])
     
-    	all_losses = []
-    	index = 0
+		all_losses = []
+		index = 0
     	# get index from which anomaly starts 
 		for l in L:		
-    		input_symbols = torch.tensor(l).reshape(-1,20,1)
-    		pred,losses = predict(loaded_model,input_symbols)
-    		mean_loss = np.mean(losses)
-    		all_losses.append(mean_loss)
-    		index = index + 1
+			input_symbols = torch.tensor(l).reshape(-1,20,1)
+			pred,losses = predict(loaded_model,input_symbols)
+			mean_loss = np.mean(losses)
+			all_losses.append(mean_loss)
+			index = index + 1
 
-    	display_symbols = []
+		display_symbols = []
 
 		for mean_loss in all_losses:
-		    low = 20* index
-		    high = 20*(index+1)
-		    if mean_loss > 5:
-		        for sequence in packet_symbols[low:high]:
-		            print(sequence)
-		            display_symbols.append(sequence+[0])
-		    else:
-		        for sequence in packet_symbols[low:high]:
-		            print(sequence)
-		            display_symbols.append(sequence+[1])
+			low = 20* index
+			high = 20*(index+1)
+			if mean_loss > 5:
+				for sequence in packet_symbols[low:high]:
+					print(sequence)
+					display_symbols.append(sequence+[0])
+			else:
+				for sequence in packet_symbols[low:high]:
+					print(sequence)
+					display_symbols.append(sequence+[1])
 
-
-
-		# build table including anomaly true/false
-
+		print(display_symbols)
 		# get path for the image 
 
+
 		# render everything in template 
+
 
 		return Response(display_symbols, status = status.HTTP_200_OK)		
