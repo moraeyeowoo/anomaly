@@ -32,10 +32,37 @@
     }
  
   </style>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<html>
+<script>  
+  $(document).ready(function(){
 
-<html><body>
+    $('.device_entry').on('click', function(event){
+      var device_pk = $(this).attr('id')
+      request_url = "/sec_gate/anomaly/"+device_pk +"/"  
+
+         $.ajax({
+            type: "POST",
+            url: request_url
+          }).done(function(response){
+
+            console.log(response)
+         
+          });
+
+    });
+
+    $('.detect').one('click', function(event){
+      var device_pk = $(this).attr('id')
+      var key ="#anomaly"+device_pk
+      $(key).text("Anomaly!")
+
+    })
 
 
+  });
+</script>
+<body>
 <div class="sidenav">
   <a href="#">Identify Device</a>
   <a href="#">Detect Anomaly</a>
@@ -58,41 +85,40 @@
       <th scope="col">#</th>
       <th scope="col">Mac Address</th>
       <th scope="col">IP Address</th>
-      <th scope="col">Latest Capture Time</th>
-      <th scope="col">TCP Packet Collected(count)</th>
-      <th scope="col">TCP Packet Trained</th>
+      <th scope="col">Total TCP Packet</th>
       <th scope="col">Device Type</th>
+      <th scope="col">Model Trained</th>
       <th scope="col">Model Update Time</th>
       <th scope="col">Train Baseline</th>
       <th scope="col">Detect Anomaly</th>
+      <th scope="col">Status</th>
+      <th scope="col">Details</th>
     </tr>
   </thead>
   <tbody>
     {% for device in devices %}
-      <tr>
-        <td>{{device.id}}</td>
+      <tr id = {{device.id}} >
+        <td id ={{device.id}} >{{device.id}}</td>
         <td>{{device.device_mac_address}}</td>
         <td>{{device.device_ip_address}}</td>
-        <td>{{device.duration}}</td>
         <td>{{device.packet_count}}</td>
         <td>{{device.device_type}}</td>
-        <td>False</td>
-        <td><button type="button" class="btn btn-primary">Train</button></td>
-        <td><button type="button" class="btn btn-danger">Detect</button></td>
+        <td>{{device.model_trained}}</td>
+        <td>{{device.updated_time}}</td>
+        <td><button type="button" class="btn btn-primary device_entry" id = {{device.id}} >Train</button></td>
+        <td><button type="button" class="btn btn-danger detect" id = {{device.id}} >Detect</button></td>
+        <td class="result" id="anomaly{{device.id}}">N/A</td>
+        <td><button ty[e="button"></buttson>
       </tr>
     {% endfor %}
-
   </tbody>
 </table>
-<div class="w-50 p-3" style="background-color: #eee;">
-<form>
-  <div class="form-group">
-    <label for="exampleInputEmail1">Device Type</label>
-    <input type="email" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp" placeholder="Enter Device Name">
-  </div>
-  <button type="submit" class="btn btn-primary">Label</button>
-</form>
 </div>
+<div>
+<panel>
+  Hello
+</panel>
 </div>
+
 </div>
 </body></html>

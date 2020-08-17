@@ -9,6 +9,7 @@ class Device(models.Model):
 	anomaly_hwm = models.IntegerField(null=True)
 	anomaly_path = models.CharField(max_length=256,null=True)
 	model_trained = models.BooleanField(default=False)
+	updated_time = models.DateTimeField(auto_now=True)
 
 class PacketData(models.Model):
 	device = models.ForeignKey(Device, related_name='packet_set', on_delete=models.CASCADE)

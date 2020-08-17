@@ -189,7 +189,7 @@ def label_device(request,pk):
 
 
 class AnomalyDetail(generics.RetrieveAPIView):
-	renderer_classes = [TemplateHTMLRenderer]
+	#renderer_classes = [TemplateHTMLRenderer]
 	# query the last n packets and detect anomaly 
 	def get(self, request, pk):
 		ANOMALY_INPUT_COUNT = 100
@@ -231,12 +231,10 @@ class AnomalyDetail(generics.RetrieveAPIView):
 			return Response(content, status=status.HTTP_404_NOT_FOUND)
 
 		prediction, losses = predict(model, anomaly_test_dataset)
-		print(prediction)
-		print(losses)
 		# return response 
 		content = {"message": "Anomaly Query","losses":losses}
 		device = {"device":device.device_mac_address}
-		return Response(device, template_name = 'device_anomaly.html')		
+		return Response(device, status = status.HTTP_200_OK)		
 		#return Response(content, status = status.HTTP_200_OK)
 
 	# create a new model for anomaly, this may take long time. may need to use async  
@@ -303,3 +301,68 @@ class AnomalyDetail(generics.RetrieveAPIView):
 
 		content = {"message": "Update Model"}
 		return Response(content, status = status.HTTP_200_OK)
+
+
+class AnomalyDetailPanel(generics.RetrieveAPIView):
+	renderer_classes = [TemplateHTMLRenderer]
+
+	def get(self, request, pk):
+
+		# get last 200 packets from the device
+		device = Device.objects.get(pk=pk)
+		packet_set = device.pakcet_set.all()
+		
+		# test anomaly for everything
+		tcp_packets = [ pkt for pkt in packet_set if TCP in decode_packet(pkt.packet)]
+		tcp_packets_count = len(dlink3_tcp_packets)
+		# this has to be a multiple of 20 
+		test_packets_count = math.floor(tcp_packets_count/20) * 20
+		mac_address = device.device_mac_address
+		
+		test_packets_objects = tcp_packets[0:test:packets_count]
+
+		test_packets = [ decode_packet(pkt.packet) for pkt in test_packets_objects ]
+		
+		packet_symbols = get_packet_symbols(test_packets,mac_address)
+		
+		steps = test_packets_count / 20 
+
+		L = []
+		for k in range(0,steps):
+    		low = 20 *k
+    		high = 20 *(k+1)
+    		L.append(packet_symbols[low:high])
+    
+    	all_losses = []
+    	index = 0
+    	# get index from which anomaly starts 
+		for l in L:		
+    		input_symbols = torch.tensor(l).reshape(-1,20,1)
+    		pred,losses = predict(loaded_model,input_symbols)
+    		mean_loss = np.mean(losses)
+    		all_losses.append(mean_loss)
+    		index = index + 1
+
+    	display_symbols = []
+
+		for mean_loss in all_losses:
+		    low = 20* index
+		    high = 20*(index+1)
+		    if mean_loss > 5:
+		        for sequence in packet_symbols[low:high]:
+		            print(sequence)
+		            display_symbols.append(sequence+[0])
+		    else:
+		        for sequence in packet_symbols[low:high]:
+		            print(sequence)
+		            display_symbols.append(sequence+[1])
+
+
+
+		# build table including anomaly true/false
+
+		# get path for the image 
+
+		# render everything in template 
+
+		return Response(display_symbols, status = status.HTTP_200_OK)		

@@ -4,7 +4,7 @@ from DeviceFingerprint.models import *
 class DeviceSerializer(serializers.ModelSerializer):
 	class Meta:
 		model = Device
-		fields = ['id','device_mac_address','device_ip_address', 'device_type']
+		fields = ['id','device_mac_address','device_ip_address', 'device_type', 'model_trained', 'updated_time']
 
 	def to_representation(self, instance):
 		ret = super().to_representation(instance)

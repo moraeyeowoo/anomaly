@@ -10,5 +10,6 @@ urlpatterns= [
 	path('<int:pk>/savepcap/',views.save_packet, name='save_packet'),
 	path('classification/panel/', views.ControlPanel.as_view()),
 	path('anomaly/<int:pk>/', views.AnomalyDetail.as_view()),
-	path('anomalypanel/',views.AnomalyPanel.as_view())
+	path('anomalypanel/',views.AnomalyPanel.as_view()),
+	path('anomalypanel/detail/<int:pk>',views.AnomalyDetailPanel.as_view())
 ]

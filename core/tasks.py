@@ -18,11 +18,10 @@ def train_anomaly_model(device_mac_address):
 	PATH = device.anomaly_path
 
 	packet_set = device.packet_set.all()
-	if device.anomaly_hwm != -1:
-		# we have to filter
-		print("hwm was updated")
-	detection_sequence = list(device.packet_set.order_by('pk'))
-	packets = [ decode_packet(k.packet) for k in detection_sequence ]
+
+	train_sequence = list(device.packet_set.order_by('pk'))
+	
+	packets = [ decode_packet(k.packet) for k in train_sequence ]
 	tcp_packets = [ pkt for pkt in packets if TCP in pkt ]
 
 	tcp_packets_count = len(tcp_packets)
@@ -30,13 +29,12 @@ def train_anomaly_model(device_mac_address):
 	tcp_packet_symbols = get_packet_symbols(tcp_packets,device_mac_address)
 	train_dataset = torch.tensor(tcp_packet_symbols[:train_packets_count]).reshape(-1,20,1)
 
-	# get high water mark 
-	train_count = len(detection_sequence)
-	hwm = int(detection_sequence[train_count-1].pk)
-	device.anomaly_hwm = hwm 
-
-	model = RecurrentAutoencoder(20,1)
-	print("--------------------")
+	if device.model_trained == True:
+		PATH = device.anomaly_path
+		model = torch.load(PATH)
+	else:
+		model = RecurrentAutoencoder(20,1)
+		
 	train_model(model, train_dataset, 20)
 	device.model_trained = True
 
