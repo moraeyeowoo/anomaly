@@ -221,7 +221,7 @@ def filter_periods(periods):
 
 
 def get_fingerprint(periods):
-    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP","HTTPS"]    
+    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP","HTTPS","HTTP","MDNS"]    
     protocols_4 = ["ARP", "IGMP", "ICMP"]
     feature_1 = 0
     L = [len(periods[protocol][1]) for protocol in protocols]

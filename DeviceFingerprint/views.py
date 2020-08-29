@@ -56,7 +56,7 @@ class DeviceList(APIView):
 			device.device_type = device_name
 			device.save()
 
-			packets = device.packet_set.all()
+			packets = device.packet_set.filter(direction=0)
 			if len(packets) < 100:
 				continue
 
@@ -79,11 +79,11 @@ class DeviceList(APIView):
 		print("Obtaining fingerprint from device packets")
 		for key in device_map:
 			device = Device.objects.get(pk=key)
-			packets = device.packet_set.all()
+			packets = device.packet_set.filter(direction=0)
 			packets = list(packets)
 			packets.sort(key = lambda x: x.packet_time)
 			if len(packets) > 3000:
-				packets = packets[1000:]
+				packets = packets[1500:]
 			device_type_id = device_map[key]
 			print(key)
 			print(device_type_id)
@@ -135,9 +135,12 @@ class DeviceDetail(APIView):
 		print("POST REQUEST")
 		print(pk)
 		device = Device.objects.get(pk=pk)
+		print(device.device_mac_address)
 		packets = device.packet_set.all()
 		# alert if collected packet is less than 30 seconds 
-		packet_list = list(packets)
+		packets = list(packets)
+		packets.sort(key = lambda x: x.packet_time)
+		packet_list = packets
 		if len(packet_list) == 0:
 			print(len(packet_list))
 			print("no enough packets")
@@ -270,10 +273,6 @@ def receive_packet(request):
 		return Response(status=status.HTTP_404_NOT_FOUND)
 	# check if it is already in Device
 	devices = Device.objects.filter(device_mac_address=pkt_src_addr)
-	# if not save to Device
-	# save regardless of source dst 
-	ip_addr = " "
-
 
 	# sometimes device gets registered without IP 
 	if len(devices) == 0 and IP in packet:
@@ -284,11 +283,8 @@ def receive_packet(request):
 		if not serializer.is_valid():
 			return Response(status=status.HTTP_404_NOT_FOUND)
 		serializer.save()
-	# save packet 
-	# we need to save packets both originating from and headed to the device
 
-	# direction 0 is source, 1 is dst
-
+	# find the device whose mac address is the source mac address of the
 	try:
 		device = Device.objects.get(device_mac_address=pkt_src_addr)
 	except:
@@ -301,10 +297,11 @@ def receive_packet(request):
 
 	# also save if destination address match
 	try:
-		device = Device.objects.filter(device_mac_address=pkt_dst_addr)
+		devices = Device.objects.filter(device_mac_address=pkt_dst_addr)
 	except:
 		return Resposne(status=status.HTTP_404_NOT_FOUND)
 
+	print("saving destination packet")
 	if len(devices) !=0:
 		device = devices[0]
 		data = {"device":device.pk, "packet":b64packet, "packet_time":packet_time,"direction":1}
