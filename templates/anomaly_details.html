@@ -52,8 +52,39 @@
 <button type="button" class="btn btn-primary btn-lg btn-block">Renew State</button>
 
 <div>
-<p>Hello9999999999999999999999999999</p>
+<table class="table table-dark">
+  <thead>
+    <tr>
+      <th scope="col">Direction</th>
+      <th scope="col">Local Port</th>
+      <th scope="col">Remote Port</th>
+      <th scope="col">Packet Length Index</th>
+      <th scope="col">TCP Flag</th>
+      <th scope="col">Anomaly Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for symbol in symbols %}
+      <tr>
+        <td>{{symbol.0}}</td>
+        <td>{{symbol.1}}</td>
+        <td>{{symbol.2}}</td>
+        <td>{{symbol.3}}</td>
+        <td>{{symbol.4}}</td>
+        <td>{{symbol.5}}</td>
+      </tr>
+    {% endfor %}
+
+  </tbody>
+</table>
 <div class="w-50 p-3" style="background-color: #eee;">
+<form>
+  <div class="form-group">
+    <label for="exampleInputEmail1">Device Type</label>
+    <input type="email" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp" placeholder="Enter Device Name">
+  </div>
+  <button type="submit" class="btn btn-primary">Label</button>
+</form>
 </div>
 </div>
 </div>

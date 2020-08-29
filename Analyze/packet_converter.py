@@ -1,6 +1,14 @@
 import base64
 from scapy.all import *
 
+FIN = 0x01
+SYN = 0x02
+RST = 0x04
+PSH = 0x08
+ACK = 0x10
+URG = 0x20
+ECE = 0x40
+CWR = 0x80
 
 def encode_packet(packet):
 	#encode to bytes
@@ -115,6 +123,8 @@ def convert_symbol_to_string(symbol):
     c4 = symbol[3]
     c5 = int(symbol[4]*10)
     c6 = symbol[5]
+    c7 = symbol[6]
+    ret_map = {"direction":None, "local":None,"remote":None,"tcp":None,"status":None}
     ret = []
     if c1 == 0:
         ret.append("Incoming")
@@ -153,7 +163,12 @@ def convert_symbol_to_string(symbol):
         tcp_flag_str+="ECE "
     if c5 & CWR:
         tcp_flag_str+="CWR "
-        
+
     ret.append(tcp_flag_str)
     
+    if c7 == 0:
+        ret.append("Anomaly")
+    elif c7 == 1:
+        ret.append("Benign")
+
     return ret

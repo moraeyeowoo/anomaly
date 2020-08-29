@@ -31,67 +31,35 @@ step 3 : Ts ---->confirmTs ---->Confrired Ts
     packets : packets filtered by mac address for 30 mins
 """
 
-def get_time_series(packets, protocol):
-
-    packets_by_proto = []
-    if protocol == 'IGMP':
-        packets_by_proto = []
-        for packet in pcap_packets:
-            if IP in packet and packet.proto ==2:
-                packets.append(packet)
-    if protocol == 'SSDP':
-        packets_by_proto = []
-        for packet in pcap_packets:
-            if 'NOTIFY' in str(packet) or 'MSEARCH' in str(packet):
-                packets.append(packet)
-
-    if protocol == 'HTTPS':
-        packets_by_proto = []
-        for packet in pcap_packets:
-            if TCP in packet:
-                if packet[TCP].sport == 443 and TLS in pcap[TCP]:
-                    packets_by_proto.append(packet)
-    else:
-        filtered_packets = list(filter(lambda x: protocol in decode_packet(x.packet), list(packets))) 
-
-    start_time = packets[0].packet_time
-    duration = len(packets)
-    end_time = packets[duration-1].packet_time
-    flow_duration = math.ceil(end_time - start_time)
-    indices = [ math.floor(packets.packet_time - start_time) for packet in packets]
-    zeroes = [0] * duration
-    for index in indices:
-        zeroes[index] = 1
-    return zeroes
-
 
 def timestamp_flow(pcap_packets, protocol, src_mac_addr,start, end): 
     if protocol == 'IGMP':
         packets = []
         for packet in pcap_packets:
-            if IP in packet and packet.proto ==2:
+            if IP in packet and packet.proto ==2 and packet.src == src_mac_addr:
                 packets.append(packet)
     elif protocol == 'SSDP':
         packets = []
         for packet in pcap_packets:
-            if 'NOTIFY' in str(packet) or 'MSEARCH' in str(packet):
+            if ('NOTIFY' in str(packet) or 'MSEARCH' in str(packet)) and packet.src == src_mac_addr:
                 packets.append(packet)
 
     elif protocol == 'HTTPS':
         packets = []
         for packet in pcap_packets:
             if TCP in packet:
-                if packet[TCP].sport == 443 and TLS in packet[TCP]:
+                if packet[TCP].sport == 443 and TLS in packet[TCP] and packet.src== src_mac_addr:
                     packets.append(packet)
 
     elif protocol == 'MDNS':
         packets = []
         for packet in pcap_packets:
             if UDP in packet:
-                if packet[UDP].sport == 5353 and DNS in packet:
+                if packet[UDP].sport == 5353 and DNS in packet and packet.src == src_mac_addr:
                     packets.append(packet)
     else:
-        packets = pcap_packets.filter(lambda x: protocol in x and x.src == src_mac_addr)
+        #packets = pcap_packets.filter(lambda x: protocol in x and x.src == src_mac_addr)
+        packets = [ pkt for pkt in pcap_packets if protocol in pkt and pkt.src ==src_mac_addr ]
 
     start_time = pcap_packets[0].time
     end_time = pcap_packets[-1].time 
@@ -225,19 +193,6 @@ def filter_periods(periods):
         filtered_periods[protocol] = (flow,Ts)
     return filtered_periods
 
-
-
-
-
-# features from 1 to 16 concerns only periods#
-# features from 17 to 33 concerns also characteristic metric
-# we need bin function
-def create_bin(periods):
-    # 1. filter periods
-    # 2. get metric
-    # 3. for each 
-    pass
-
 def fingerprint(periods):
     protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP","HTTPS"]    
     protocols_4 = ["ARP", "IGMP", "ICMP"]
@@ -246,6 +201,9 @@ def fingerprint(periods):
     for l in L:
         if not l == 0:
             feature_1 = feature_1 + 1 
+
+    if feature_1 == 0:
+        return []
 
     feature_2 = 0
     L = [len(periods[protocol][1]) for protocol in protocols_4]
@@ -270,7 +228,6 @@ def fingerprint(periods):
     feature_6 = len(L)
 
     # feature 7 ~ 12 don't bother 
-
     Ts = []
     for protocol in protocols:
         Ts = Ts+periods[protocol][1]
@@ -290,7 +247,6 @@ def fingerprint(periods):
     S = [ T for T in Ts if T>120 and T<600]
     feature_16 = len(S)
 
-    filtered_periods = filter_periods(periods)
     metrics = get_characteristic_metric(periods)
     
     # Mean(r) in [0.2; 0.7]
@@ -325,14 +281,74 @@ def fingerprint(periods):
     for key in metrics:
         if not len(metrics[key])==0:
             rs = [k[1] for k in metrics[key]]
-            Mean_r = np.mean(rs)
+            mean_r = np.mean(rs)
             SD_r = np.std(rs)
             rns = [k[2] for k in metrics[key]]
-            Mean_rn = np.mean(rns)
+            mean_rn = np.mean(rns)
             SD_rn = np.std(rns)
-        
+            # feature for mean(r)
+            if 0.2 < mean_r and 0.7 > mean_r:
+                feature_17 +=1
+            elif 0.7 < mean_r and 1.0 > mean_r:
+                feature_18 +=1
+            elif 1.0 < mean_r and 2.0 > mean_r: 
+                feature_19 +=1
+            elif 2.0 < mean_r:
+                feature_20 +=1
+            
+            # feature for SD(r)  
+            if 0.0 < SD_r and 0.02 > SD_r:
+                feature_21 +=1
+            elif 0.02 < SD_r and SD_r < 0.1:
+                feature_22 +=1
+            elif SD_r > 0.1:
+                feature_23 +=1
+            
+            # feature for mean(r)
+            if 0.2 < mean_rn and 0.7 > mean_r:
+                feature_24 +=1
+            elif 0.7 < mean_rn and 1.0 > mean_r:
+                feature_25 +=1
+            elif 1.0 < mean_rn and 2.0 > mean_r: 
+                feature_26 +=1
+            elif 2.0 < mean_rn:
+                feature_27 +=1
+            
+            # feature for SD(r)  
+            if 0.0 < SD_rn and 0.02 > SD_r:
+                feature_28 +=1
+            elif 0.02 < SD_rn and SD_r < 0.1:
+                feature_29 +=1
+            elif SD_rn > 0.1:
+                feature_30 +=1
 
-
+    ret = [
+        feature_1,
+        feature_2,
+        feature_3,
+        feature_4,
+        feature_5,
+        feature_6,
+        feature_13,
+        feature_14,
+        feature_15, 
+        feature_16, 
+        feature_17,
+        feature_18,
+        feature_19,  
+        feature_20,  
+        feature_21,      
+        feature_22,
+        feature_23,
+        feature_24,
+        feature_25, 
+        feature_26,
+        feature_27, 
+        feature_28,
+        feature_29, 
+        feature_30
+    ]
+    return ret 
 
 def print_period(timestamps, l):
     n = len(timestamps)//l

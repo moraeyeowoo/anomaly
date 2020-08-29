@@ -33,49 +33,103 @@
     }
  
   </style>
+<html>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script>
 
-<html><body>
+$(document).ready(function(){
 
+    $('.classify').on('click', function(event){
+      var tags  = {};
+      
+      $("#TableView tr.item").each(function() {
+          // get id and name 
+          var device_name = $(this).find("input.name").val();
+          var device_id = $(this).find(".pk").text();
+          var device_id = $(this).find(".pk").html();
+
+          var txt = $(this).html();
+          tags[device_id] = device_name;
+      });
+      data ={"labels":tags};
+      var data = JSON.stringify(data);
+      console.log(data)
+      request_url = "/sec_gate/devices/"  
+      $.ajax({
+            type: "POST",
+            url: request_url,
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            data:data
+        }).done(function(response){
+            console.log(response) 
+      });
+
+    });
+
+    $('.identify').on('click',function(event){
+
+      var device_id = $(this).attr('id');
+      request_url = "/sec_gate/devices/"+device_id+"/"
+
+      $.ajax({
+        type: "POST",
+        url:request_url
+      }).done(function(response){
+        var device_type = response["device_type"];
+        var key ="#type"+device_id;
+        $(key).text(device_type);
+      })
+
+    })
+
+});
+</script>
+<body>
 <div class="sidenav">
-  <a href="#">Identify Device</a>
-  <a href="#">Detect Anomaly</a>
+  <a href="/sec_gate/classification/panel/">Identify Device</a>
+  <a href="/sec_gate/anomalypanel/">Detect Anomaly</a>
 </div>
 
   <div class="main">
 
     <h2><a class="navbar-brand" href="#"><b>List of Connected Devices</b></a></h2>
-<table class="table table-dark">
+<table id="TableView" class="table table-dark">
   <thead>
     <tr>
       <th scope="col">#</th>
       <th scope="col">Mac Address</th>
       <th scope="col">IP Address</th>
-      <th scope="col">First Capture</th>
+    
       <th scope="col">Capture Duration</th>
       <th scope="col">Device Type</th>
       <th scope="col">Identify Device</th>
-      <th scope="col">Classify Device</th>
+      <th scope="col">Device Label</th>
+      <th scope="col">Details</th>
     </tr>
   </thead>
   <tbody>
     {% for device in devices %}
-      <tr>
-        <td>{{device.id}}</td>
+      <tr class="item" id={{device.id}}>
+        <td class="pk">{{device.id}}</td>
         <td>{{device.device_mac_address}}</td>
         <td>{{device.device_ip_address}}</td>
-        <td>Unknown</td>
+       
         <td>{{device.duration}}</td>
-        <td>{{device.device_type}}</td>
-        <td><button type="button" class="btn btn-primary">Identify</button></td>
-        <td><button type="button" class="btn btn-danger">Classify</button></td>
+        <td id="type{{device.id}}">{{device.device_type}}</td>
+        <td><button type="button" class="btn btn-primary identify" id="{{device.id}}">Identify</button></td>
+        <td><input type="text" id="device_{{device.id}}" class="name"></td>
+        <td><a href="{{device.id}}" >Details</a></td>
       </tr>
     {% endfor %}
 
   </tbody>
 </table>
+<button type="button" class="btn btn-primary classify">Classify</button>
 </div>
+<div>
 
 
-
+</div>
 </body>
 </html>

@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django_extensions',
     'rest_framework',
     'bootstrap4',
+
 ]
 
 MIDDLEWARE = [
@@ -125,6 +126,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.0/howto/static-files/
 
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_URL = '/media/'
 
 STATIC_URL = '/static/'
 STATICFILES_DIRS = (os.path.join(BASE_DIR, "static"),)

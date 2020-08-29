@@ -1,0 +1,85 @@
+{% load rest_framework %}
+{% load bootstrap4 %}
+{% bootstrap_css %}
+<style type="text/css">
+    .sidenav {
+      height:100%;
+      width:160px;
+      position: fixed;
+      z-index:1;
+      top:0;
+      left:0;
+      background-color:#111;
+      overflow-x: :hidden;
+      padding-top:20px;
+    }
+ 
+    .sidenav a {
+      padding:6px 8px 6px 16px;
+      text-decoration: none;
+      font-size:25px;
+      color: #818181;
+      display:block;
+    }
+ 
+    .sidenav a:hover{
+      color:#f1f1f1;
+    } 
+ 
+    .main{
+      margin-left:160px;
+      padding: 0px 10px;
+    }
+ 
+  </style>
+
+<html><body>
+
+
+<div class="sidenav">
+  <a href="#">Identify Device</a>
+  <a href="#">Detect Anomaly</a>
+</div>
+
+<div class="main">
+  <nav class="navbar navbar-expand-lg navbar-light bg-light">
+  <h2><a class="navbar-brand" href="#"><b>List of Protocols with Periodic Flow</b></a></h2>
+  <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+</nav>
+<div>
+<table class="table table-dark">
+  <thead>
+    <tr>
+      <th scope="col">Protocol</th>
+      <th scope="col">Period Length</th>
+      <th scope="col">Stability Index R</th>
+      <th scope="col">Stability Index RN</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for metric in metrics %}
+      <tr>
+        <td>{{metric.0}}</td>
+        <td>{{metric.1}}</td>
+        <td>{{metric.2}}</td>
+        <td>{{metric.3}}</td>
+      </tr>
+    {% endfor %}
+
+  </tbody>
+</table>
+
+</div>
+
+<div>
+<panel>
+  <img src="/media/test.png" alt="Italian Trulli">
+</panel>
+</div>
+<div class="w-50 p-3" style="background-color: #eee;">
+<button type=" " class="btn btn-primary"><a href="https://www.cvedetails.com/product/37407/D-link-Dcs-934l">Vulnerability</a></button>
+</div>
+</div>
+</body></html>

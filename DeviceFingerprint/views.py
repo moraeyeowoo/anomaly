@@ -11,6 +11,9 @@ from rest_framework import generics
 from Analyze.model import *
 from Analyze.packet_converter import *
 from core.tasks import train_anomaly_model
+from Analyze.classification import *
+from sklearn.neighbors import KNeighborsClassifier
+import pickle
 
 def decode_packet(utf8_encoded_packet):
 	import base64
@@ -28,6 +31,207 @@ class DeviceList(APIView):
 		devices = Device.objects.all()
 		serializer = DeviceSerializer(devices,many=True)
 		return Response(serializer.data, status = status.HTTP_200_OK)		
+
+	def post(self, request):
+		"""
+		dlink cam 1, dlink2 sensor 2, xiaomi 3, edimax 4 
+		"""
+
+		labels = request.data["labels"]
+		print(labels)
+		device_map = {}
+		knn_map = {}
+		device_type_id = 0
+
+		device_models = DeviceModels.objects.all()
+		for device_model in device_models:
+			device_model.delete()
+
+		for key in labels:
+			device_id = int(key)
+			device_name = labels[key]
+			print(device_name)
+			# record the name of the device in database 
+			device = Device.objects.get(pk=device_id)
+			device.device_type = device_name
+			device.save()
+
+			packets = device.packet_set.all()
+			if len(packets) < 100:
+				continue
+
+			if not (device_name == None or device_name ==""):
+				device_map[device_id] = device_type_id
+				print(device_name)
+				data = {"internal_model_id": device_type_id,"model_name": device_name}
+				print(data)
+				serializer = DeviceModelsSerializer(data=data)
+				serializer.is_valid()
+				print("errors -----------------------")
+				print(serializer.errors)
+				print("-------------------------")
+				serializer.save()
+				device_type_id+=1
+
+		# train KNN
+		print(device_map)
+		
+		print("Obtaining fingerprint from device packets")
+		for key in device_map:
+			device = Device.objects.get(pk=key)
+			packets = device.packet_set.all()
+			packets = list(packets)
+			packets.sort(key = lambda x: x.packet_time)
+			if len(packets) > 3000:
+				packets = packets[1000:]
+			device_type_id = device_map[key]
+			print(key)
+			print(device_type_id)
+			fingerprints = []
+			if not len(packets) == 0:
+				device_mac = device.device_mac_address
+				sub_periods = get_sub_periods(packets, device_mac)
+				filtered_periods = filter_periods(sub_periods)
+				fingerprint = get_fingerprint(filtered_periods)	
+				knn_map[device_type_id] = fingerprint
+				print(fingerprint)
+
+		# train the model here 
+		print("Training K Nearest Neighborhood Model")
+		X = []
+		y = []
+		for key in knn_map:
+			y.append(key)
+			y.append(key)
+			y.append(key)
+			fp = knn_map[key]
+			X.append(fp)
+			X.append(fp)
+			X.append(fp)
+
+		print(X)
+		print(y)
+
+		# train Knn model
+		neigh = KNeighborsClassifier(n_neighbors=5)
+		neigh.fit(X, y)
+		
+		print(neigh)
+		knnPickle = open('knn_models/classifier', 'wb') 
+		pickle.dump(neigh, knnPickle)   
+		# save model 
+		print("Training Complete")
+		return Response(status = status.HTTP_200_OK)
+
+class DeviceDetail(APIView):
+	
+	def get(self, request, pk):
+		
+		# to be used by ajax, 
+
+		return Response(status = status.HTTP_200_OK)
+
+	def post(self, request, pk):
+		print("POST REQUEST")
+		print(pk)
+		device = Device.objects.get(pk=pk)
+		packets = device.packet_set.all()
+		# alert if collected packet is less than 30 seconds 
+		packet_list = list(packets)
+		if len(packet_list) == 0:
+			print(len(packet_list))
+			print("no enough packets")
+			content ={"resp":"Not enough packets captured"}
+			return Response(content, status.HTTP_404_NOT_FOUND)
+
+		capture_duration = int(packet_list[-1].packet_time - packet_list[0].packet_time)
+		print(capture_duration)
+		if capture_duration < 1600:
+			print("not enough packets")
+			content ={"resp":"Not enough packets captured"}
+			return Response(content, status.HTTP_404_NOT_FOUND)
+
+		sub_periods = get_sub_periods(packets, device.device_mac_address)
+		filtered_periods = filter_periods(sub_periods)
+		fingerprint = get_fingerprint(filtered_periods)
+		print(fingerprint)
+		# load KNN model 
+		PATH = "knn_models/classifier"
+		loaded_model = pickle.load(open(PATH, 'rb'))
+ 
+		# get integer from KNN predict
+		print(fingerprint)
+		result = loaded_model.predict([fingerprint])
+		prob = loaded_model.predict_proba([fingerprint])
+		print("result")
+		print(result)
+		print(result[0])
+		print("prob")
+		print(prob)
+		device_type_id = int(result[0])
+		device_model = DeviceModels.objects.get(internal_model_id=device_type_id)
+		print(device_model.model_name)
+		content = {"device_type":device_model.model_name}
+		device.device_type = device_model.model_name
+		device.save()
+		#upate the model name of the unknown device 
+		return Response(content, status = status.HTTP_200_OK)
+
+class DeviceDetailPanel(APIView):
+	renderer_classes = [TemplateHTMLRenderer]
+
+	def get(self, request, pk):
+
+		device = Device.objects.get(pk=pk)
+		packets = device.packet_set.all()
+		
+		sub_periods = get_sub_periods(packets, device.device_mac_address)
+		filtered_periods = filter_periods(sub_periods)
+		metrics = get_characteristic_metric(filtered_periods)
+		protocols = []
+		L = []
+		for key in metrics:
+		    if not len(metrics[key]) == 0:
+		        protocols.append(key)
+		        for periods in metrics[key]:
+		            l = []
+		            l.append(key)
+		            l.append(periods[0])
+		            l.append(periods[1])
+		            l.append(periods[2])
+		            L.append(l)
+		print(L)
+
+		# draw graphs here 
+		import matplotlib.pyplot as plt
+
+		plt.subplots_adjust(hspace=0.1)
+		x = list(range(0,900))
+		fig, axs = plt.subplots(len(protocols), sharex=True, sharey=True,figsize=(10,10))
+
+		"""
+		axs[0].plot(x, edimax1_arp_ts[900:1800],'-x',color='magenta')
+		axs[0].set_ylim([0, 2])
+		axs[0].legend(['ARP'])
+		"""
+
+		index = 0
+		for protocol in protocols:
+			# get time stamps
+			# draw 
+			ts = get_time_series(packets, protocol, device.device_mac_address)
+			axs[index].plot(x, ts[0:900], '-x', color='magenta')
+			axs[index].legend([protocol])
+			index+=1
+
+		plt.savefig("graphs/test.png")
+		data = {"metrics": L}
+		return Response(data, template_name='classification_details.html')
+
+		# variable number of pictures, path identified by pk
+
+		# variable number of characteristic metrics
+
 
 class ControlPanel(generics.RetrieveAPIView):
 	renderer_classes = [TemplateHTMLRenderer]
@@ -67,9 +271,15 @@ def receive_packet(request):
 	# check if it is already in Device
 	devices = Device.objects.filter(device_mac_address=pkt_src_addr)
 	# if not save to Device
-	if len(devices) == 0:
+	# save regardless of source dst 
+	ip_addr = " "
+
+
+	# sometimes device gets registered without IP 
+	if len(devices) == 0 and IP in packet:
+		ip_addr = packet[IP].src
 		print("registering device")
-		data = {"device_mac_address":pkt_src_addr}
+		data = {"device_mac_address":pkt_src_addr, "device_ip_address": ip_addr}
 		serializer = DeviceSerializer(data=data,partial=True)
 		if not serializer.is_valid():
 			return Response(status=status.HTTP_404_NOT_FOUND)
@@ -90,7 +300,11 @@ def receive_packet(request):
 	serializer.save()
 
 	# also save if destination address match
-	device = Device.objects.filter(device_mac_address=pkt_dst_addr)
+	try:
+		device = Device.objects.filter(device_mac_address=pkt_dst_addr)
+	except:
+		return Resposne(status=status.HTTP_404_NOT_FOUND)
+
 	if len(devices) !=0:
 		device = devices[0]
 		data = {"device":device.pk, "packet":b64packet, "packet_time":packet_time,"direction":1}
@@ -310,22 +524,28 @@ class AnomalyDetailPanel(generics.RetrieveAPIView):
 
 		# get last 200 packets from the device
 		device = Device.objects.get(pk=pk)
-		packet_set = device.pakcet_set.all()
-		
+		device
+		packet_set = device.packet_set.order_by('pk')
+	
+		PATH = device.anomaly_path
+	
+		#if device.model_trained == False:
+		loaded_model = torch.load(PATH)
+
 		# test anomaly for everything
 		tcp_packets = [ pkt for pkt in packet_set if TCP in decode_packet(pkt.packet)]
-		tcp_packets_count = len(dlink3_tcp_packets)
+		tcp_packets_count = len(tcp_packets)
 		# this has to be a multiple of 20 
 		test_packets_count = math.floor(tcp_packets_count/20) * 20
 		mac_address = device.device_mac_address
 		
-		test_packets_objects = tcp_packets[0:test:packets_count]
+		test_packets_objects = tcp_packets[0:test_packets_count+1]
 
 		test_packets = [ decode_packet(pkt.packet) for pkt in test_packets_objects ]
-		
+
 		packet_symbols = get_packet_symbols(test_packets,mac_address)
 		
-		steps = test_packets_count / 20 
+		steps = int(test_packets_count / 20)
 
 		L = []
 		for k in range(0,steps):
@@ -336,7 +556,8 @@ class AnomalyDetailPanel(generics.RetrieveAPIView):
 		all_losses = []
 		index = 0
     	# get index from which anomaly starts 
-		for l in L:		
+		for l in L:	
+			print(len(l))	
 			input_symbols = torch.tensor(l).reshape(-1,20,1)
 			pred,losses = predict(loaded_model,input_symbols)
 			mean_loss = np.mean(losses)
@@ -345,6 +566,7 @@ class AnomalyDetailPanel(generics.RetrieveAPIView):
 
 		display_symbols = []
 
+		index = 0
 		for mean_loss in all_losses:
 			low = 20* index
 			high = 20*(index+1)
@@ -357,11 +579,15 @@ class AnomalyDetailPanel(generics.RetrieveAPIView):
 					print(sequence)
 					display_symbols.append(sequence+[1])
 
-		print(display_symbols)
-		# get path for the image 
 
+		# get path for the image 
+		content = []
+		for symbol in display_symbols:
+			representation = convert_symbol_to_string(symbol)
+			content.append(representation)
 
 		# render everything in template 
+		data = {"symbols":content}
 
+		return Response(data,template_name='anomaly_details.html')		
 
-		return Response(display_symbols, status = status.HTTP_200_OK)		

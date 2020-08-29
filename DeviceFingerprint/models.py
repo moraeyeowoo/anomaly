@@ -5,7 +5,7 @@ from django.contrib.postgres.fields import ArrayField
 class Device(models.Model):
 	device_mac_address = models.CharField(max_length=25,unique=True)
 	device_ip_address = models.CharField(max_length=25,null=True)
-	device_type = models.CharField(max_length=25,null=True)
+	device_type = models.CharField(max_length=25,null=True, unique=False)
 	anomaly_hwm = models.IntegerField(null=True)
 	anomaly_path = models.CharField(max_length=256,null=True)
 	model_trained = models.BooleanField(default=False)
@@ -27,3 +27,7 @@ class TypeFingerprint(models.Model):
 class AnomalyFingerprint(models.Model):
 	device = models.ForeignKey(Device,related_name='anomaly_fingerprint',on_delete=models.CASCADE)
 	fingerprint = ArrayField(models.IntegerField())
+
+class DeviceModels(models.Model):
+	model_name = models.CharField(max_length=25, unique=True)
+	internal_model_id = models.IntegerField(null=True)

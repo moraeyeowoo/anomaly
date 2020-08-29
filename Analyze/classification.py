@@ -35,30 +35,80 @@ def calculate_rn(timeseries,l):
     denominator = len(timeseries)
     return (numerator/denominator)
 
+def get_time_series_bad(packets, protocol,src_mac_addr):
 
-def get_time_series(packets, protocol):
+    pcap_packets = [ decode_packet(packet.packet) for packet in packets ]
+    filtered_packets = []
+    if protocol == 'IGMP':
+        for pcap_packet in pcap_packets:
+            if IP in pcap_packet and pcap_packet.proto ==2 and pcap_packet.src == src_mac_addr:
+                filtered_packets.append(packet)
+
+    elif protocol == 'SSDP':
+        for pcap_packet in pcap_packets:
+            if 'NOTIFY' in str(pcap_packet) or 'MSEARCH' in str(pcap_packet) and pcap_packet.src == src_mac_addr:
+                filtered_packets.append(packet)
+
+    elif protocol == 'HTTPS':
+        for pcap_packet in pcap_packets:
+            if TCP in pcap_packet:
+                if pcap_packet[TCP].sport == 443 and TLS in pcap_packet[TCP] and pcap_packet.src== src_mac_addr:
+                    filtered_packets.append(packet)
+
+    elif protocol == 'MDNS':
+        for pcap_packet in pcap_packets:
+            if UDP in pcap_packet:
+                if pcap_packet[UDP].sport == 5353 and DNS in pcap_packet and pcap_packet.src == src_mac_addr:
+                    filtered_packets.append(packet)
+    
+    else:
+        filtered_packets = list(filter(lambda pcap_packet: protocol in pcap_packet, pcap_packets)) 
+
+
+    start_time = packets[0].packet_time
+    duration = len(packets)
+    end_time = packets[duration-1].packet_time
+    timeseries_duration = math.ceil(end_time - start_time)
+    indices = [ math.floor(packet.packet_time - start_time) for packet in filtered_packets]
+    zeroes = [0] * timeseries_duration
+    for index in indices:
+        zeroes[index] = 1
+    return zeroes
+
+
+
+def get_time_series(packets, protocol,src_mac_addr):
 
     filtered_packets = []
     if protocol == 'IGMP':
         for packet in packets:
             pcap_packet = decode_packet(packet.packet)
-            if IP in pcap_packet and pcap_packet.proto ==2:
+            if IP in pcap_packet and pcap_packet.proto ==2 and pcap_packet.src == src_mac_addr:
                 filtered_packets.append(packet)
-    if protocol == 'SSDP':
+
+    elif protocol == 'SSDP':
         for packet in packets:
             pcap_packet = decode_packet(packet.packet)
-            if 'NOTIFY' in str(pcap_packet) or 'MSEARCH' in str(pcap_packet):
+            if 'NOTIFY' in str(pcap_packet) or 'MSEARCH' in str(pcap_packet) and pcap_packet.src == src_mac_addr:
                 filtered_packets.append(packet)
+
+    elif protocol == 'HTTPS':
+        for packet in packets:
+            pcap_packet = decode_packet(packet.packet)
+            if TCP in pcap_packet:
+                if pcap_packet[TCP].sport == 443 and TLS in pcap_packet[TCP] and pcap_packet.src== src_mac_addr:
+                    filtered_packets.append(packet)
+
+    elif protocol == 'MDNS':
+        for packet in packets:
+            pcap_packet = decode_packet(packet.packet)
+            if UDP in pcap_packet:
+                if pcap_packet[UDP].sport == 5353 and DNS in pcap_packet and pcap_packet.src == src_mac_addr:
+                    filtered_packets.append(packet)
     
-    if protocol == 'TCP':        
-        filtered_packets_1st = list(filter(lambda x: protocol in decode_packet(x.packet), list(packets)))
-        filtered_packets = list(filter(lambda x: not TLS in decode_packet(x.packet),list(filtered_packets_1st)))
-    
-    if protocol == 'MDNS':
-        filtered_packets_1st = list(filter(lambda x: DNS in decode_packet(x.packet), list(packets)))
-        filtered_packets =     list(filter(lambda x: decode_packet(x.packet).sport ==5353, list(filtered_packets_1st)))
     else:
         filtered_packets = list(filter(lambda x: protocol in decode_packet(x.packet), list(packets))) 
+
 
     start_time = packets[0].packet_time
     duration = len(packets)
@@ -107,18 +157,18 @@ def get_Ts(timeseries, tolerance=0.1):
     return Ts
 
 #ARP, IGMP, ICMP,TCP,UDP,  NBNS, DNS, SSDP
-def get_periods(pcap_packets,start, end):
-    periods = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "DNS":None,"SSDP":None,"HTTP":None,"TLS":None, "MDNS":None} 
-    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP","HTTP", "TLS", "MDNS"]
+def get_periods(pcap_packets,start, end,src_mac_address):
+    periods = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "DNS":None,"SSDP":None,"HTTP":None,"HTTPS":None, "MDNS":None} 
+    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP","HTTP", "HTTPS", "MDNS"]
     for protocol in protocols:
-        timeseries = get_time_series(pcap_packets, protocol)[start:end]
+        timeseries = get_time_series(pcap_packets, protocol, src_mac_address)[start:end]
         Ts = get_Ts(timeseries, 0.1)
         periods[protocol] = (timeseries, Ts)
     return periods
 
 def get_characteristic_metric(periods):
-    metrics = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "DNS":None,"SSDP":None, "HTTP":None,"TLS":None,"MDNS":None} 
-    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP","DNS", "SSDP", "HTTP","TLS","MDNS"]
+    metrics = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "DNS":None,"SSDP":None, "HTTP":None,"HTTPS":None,"MDNS":None} 
+    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP","DNS", "SSDP", "HTTP","HTTPS","MDNS"]
     for protocol in protocols:
         timeseries = periods[protocol][0]
         Ts = periods[protocol][1]
@@ -133,11 +183,11 @@ def get_characteristic_metric(periods):
 
 # periods = { "sub_1":(flow,Ts)}
 
-def get_sub_periods(packets):
-    sub_one_periods = get_periods(packets,0,900)
-    sub_two_periods = get_periods(packets,450,1450)
-    sub_three_periods = get_periods(packets,900,1800)
-    sub_all_periods = get_periods(packets,0,1800)
+def get_sub_periods(packets,src_mac_address):
+    sub_one_periods = get_periods(packets,0,900,src_mac_address)
+    sub_two_periods = get_periods(packets,450,1450,src_mac_address)
+    sub_three_periods = get_periods(packets,900,1800,src_mac_address)
+    sub_all_periods = get_periods(packets,0,1800,src_mac_address)
 
     periods = {"sub_1":sub_one_periods, "sub_2":sub_two_periods,
         "sub_3":sub_three_periods,"all":sub_all_periods}
@@ -145,8 +195,8 @@ def get_sub_periods(packets):
 
 #periods that occur at least in two 
 def filter_periods(periods):
-    filtered_periods = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None,"DNS":None,"SSDP":None,"HTTP":None,"TLS":None,"MDNS":None} 
-    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP","HTTP","TLS","MDNS"]
+    filtered_periods = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None,"DNS":None,"SSDP":None,"HTTP":None,"HTTPS":None,"MDNS":None} 
+    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP","HTTP","HTTPS","MDNS"]
 
     for protocol in protocols:
         sub_1 = periods['sub_1'][protocol][1]
@@ -170,14 +220,17 @@ def filter_periods(periods):
     return filtered_periods
 
 
-def fingerprint(periods):
-    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP","HTTP","TLS","MDNS"]    
-    protocols_4 = ["ARP", "IGMP", "ICMP","HTTP","TLS","MDNS"]
+def get_fingerprint(periods):
+    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP","HTTPS"]    
+    protocols_4 = ["ARP", "IGMP", "ICMP"]
     feature_1 = 0
     L = [len(periods[protocol][1]) for protocol in protocols]
     for l in L:
         if not l == 0:
             feature_1 = feature_1 + 1 
+
+    if feature_1 == 0:
+        return []
 
     feature_2 = 0
     L = [len(periods[protocol][1]) for protocol in protocols_4]
@@ -191,7 +244,7 @@ def fingerprint(periods):
     feature_3 = sum(L) / feature_1 
 
     # 4. SD periods per flow
-    feature4 = statistics.stdev(L)
+    feature_4 = statistics.stdev(L)
 
     # 5. No of flows having only one period
     L = [ protocol for protocol in protocols if len(periods[protocol][1])==1]
@@ -201,18 +254,7 @@ def fingerprint(periods):
     L = [ protocol for protocol in protocols if len(periods[protocol][1])>1]
     feature_6 = len(L)
 
-    # feature 7,8,9 don't bother 
-
-    # 10 11, 12, don'/t bother
-
-    #
-
-    # 
-
-    # for each flow, for each periods, calculate r and rn
-    #  should be done on filtered periods instead
-    #  sum periods across all flows/ 
-
+    # feature 7 ~ 12 don't bother 
     Ts = []
     for protocol in protocols:
         Ts = Ts+periods[protocol][1]
@@ -232,32 +274,108 @@ def fingerprint(periods):
     S = [ T for T in Ts if T>120 and T<600]
     feature_16 = len(S)
 
-
-    # 17 to 33 
-    # call 
-    filtered_periods = filter_periods(periods)
     metrics = get_characteristic_metric(periods)
-    # sum accross all protocols
+    
+    # Mean(r) in [0.2; 0.7]
+    feature_17 = 0
+    # Mean(r) in [0.7; 1]
+    feature_18 = 0    
+    # Mean(r) in [1;2]
+    feature_19 = 0    
+    # Mean(r) in [2; infin]
+    feature_20 = 0    
+    # SD(r) in [0;0.02]
+    feature_21 = 0     
+    # SD(r) in [0.02;0.1]
+    feature_22 = 0
+    # SD(r) in [0.1, infin\
+    feature_23 = 0 
+    # Mean(rn) in [0.2;0.7]
+    feature_24 = 0
+    # Mean(rn) in [0.7;1]
+    feature_25 = 0
+    # Mean(rn) in [1;2]
+    feature_26 = 0
+    # Mean(rn) in [2, infin]
+    feature_27 = 0
+    # SD(rn) in [0;0.02]
+    feature_28 = 0
+    # SD(rn) in [0.02; 0.1]
+    feature_29 = 0
+    # SD(rn) in [0.1 ; infin]
+    feature_30 = 0 
 
-    # for each period, calculate mean r f
-    # standard deviation doesn't mean anything 
+    for key in metrics:
+        if not len(metrics[key])==0:
+            rs = [k[1] for k in metrics[key]]
+            mean_r = np.mean(rs)
+            SD_r = np.std(rs)
+            rns = [k[2] for k in metrics[key]]
+            mean_rn = np.mean(rns)
+            SD_rn = np.std(rns)
+            # feature for mean(r)
+            if 0.2 < mean_r and 0.7 > mean_r:
+                feature_17 +=1
+            elif 0.7 < mean_r and 1.0 > mean_r:
+                feature_18 +=1
+            elif 1.0 < mean_r and 2.0 > mean_r: 
+                feature_19 +=1
+            elif 2.0 < mean_r:
+                feature_20 +=1
+            
+            # feature for SD(r)  
+            if 0.0 < SD_r and 0.02 > SD_r:
+                feature_21 +=1
+            elif 0.02 < SD_r and SD_r < 0.1:
+                feature_22 +=1
+            elif SD_r > 0.1:
+                feature_23 +=1
+            
+            # feature for mean(r)
+            if 0.2 < mean_rn and 0.7 > mean_r:
+                feature_24 +=1
+            elif 0.7 < mean_rn and 1.0 > mean_r:
+                feature_25 +=1
+            elif 1.0 < mean_rn and 2.0 > mean_r: 
+                feature_26 +=1
+            elif 2.0 < mean_rn:
+                feature_27 +=1
+            
+            # feature for SD(r)  
+            if 0.0 < SD_rn and 0.02 > SD_r:
+                feature_28 +=1
+            elif 0.02 < SD_rn and SD_r < 0.1:
+                feature_29 +=1
+            elif SD_rn > 0.1:
+                feature_30 +=1
 
-    # 17 # Mean(r) in [0.2:0.7]
-    # mean for what? for a protocol?     
-    # average r and rn for each metric
-
-    # 18 # Mean(r) in [0.7;1] 
-    # number of peridos with mean r in [0.7;1]
-
-    # 19 # Mean r [1;2]
-
-    # 20 # Mean r [2,infinity]
-
-    # 21 # SD(r) in [0,0.02]
-
-    # 22 # SD(r) in [0.02;0.1]
-
-    # 23 # SD(r) in [0.1,infinity]
+    ret = [
+        feature_1,
+        feature_2,
+        feature_3,
+        feature_4,
+        feature_5,
+        feature_6,
+        feature_13,
+        feature_14,
+        feature_15, 
+        feature_16, 
+        feature_17,
+        feature_18,
+        feature_19,  
+        feature_20,  
+        feature_21,      
+        feature_22,
+        feature_23,
+        feature_24,
+        feature_25, 
+        feature_26,
+        feature_27, 
+        feature_28,
+        feature_29, 
+        feature_30
+    ]
+    return ret 
 
 
 
