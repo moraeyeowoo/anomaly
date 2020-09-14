@@ -13,7 +13,66 @@ dlink2_mac = "c4:12:f5:1c:8c:f1"
 dlink3_mac = "b0:c5:54:25:22:64"
 edimax1_mac = "74:da:38:4a:a9:75"
 
+
+
+
 load_layer("tls")
+
+def get_sub_periods_from_file(packets,src_mac_address):
+    sub_one_periods = get_periods_from_file(packets,0,900,src_mac_address)
+    sub_two_periods = get_periods_from_file(packets,450,1450,src_mac_address)
+    sub_three_periods = get_periods_from_file(packets,900,1800,src_mac_address)
+    sub_all_periods = get_periods_from_file(packets,0,1800,src_mac_address)
+
+    periods = {"sub_1":sub_one_periods, "sub_2":sub_two_periods,
+        "sub_3":sub_three_periods,"all":sub_all_periods}
+    return periods 
+
+def get_pcap_packets_from_directory(path):
+    pcap_packet_list = []
+    files = os.listdir(path)
+    pcap_files = [ file for file in files if file.split(".")[1] == "pcap"]
+    pcap_file_paths = [ os.path.join(path,filename) for filename in pcap_files]
+    for pcap_file_path in pcap_file_paths:
+        pcap_packets = rdpcap(pcap_file_path)
+        pcap_packet_list.append(pcap_packets)
+    return pcap_packet_list
+
+
+def get_packets_by_mac(pcap_packets_list, mac_address):
+    ret = [] 
+    for pcap_packets in pcap_packets_list:
+        L = [mac_address == pcap_packet.src for pcap_packet in pcap_packets]
+        if True in L:
+            ret.append(pcap_packets)
+    return ret
+
+def get_fingerprint_from_pcap(pcap_packets,mac_address):
+    sub_periods = get_sub_periods_from_file(pcap_packets, mac_address)
+    filtered_periods = filter_periods(sub_periods)
+    fingerprint = get_fingerprint(filtered_periods)
+    return fingerprint
+
+def get_fingerprints_by_mac(filtered_pcap_packet_list, mac_address):
+    ret = [] 
+    for pcap_packets in filtered_pcap_packet_list:
+        fingerprint = get_fingerprint_from_pcap(pcap_packets, mac_address)
+        ret.append(fingerprint)
+    return ret
+    
+def get_all_fingerprints(pcap_packet_list, mac_addresses):
+    ret= {}
+    for mac_address in mac_addresses:
+        print(mac_address)
+        device_pcap_packets = get_packets_by_mac(pcap_packet_list, mac_address)
+        if not len(device_pcap_packets) == 0:
+            fps = get_fingerprints_by_mac(device_pcap_packets, mac_address)
+            ret[mac_address] = fps
+        else:
+            ret[mac_address] = None
+    return ret 
+
+
 
 """
     packets : packets filtered by mac address for 30 mins
@@ -35,46 +94,58 @@ def calculate_rn(timeseries,l):
     denominator = len(timeseries)
     return (numerator/denominator)
 
-def get_time_series_bad(packets, protocol,src_mac_addr):
-
-    pcap_packets = [ decode_packet(packet.packet) for packet in packets ]
+def get_time_series_from_file(packets, protocol, src_mac_addr):
     filtered_packets = []
     if protocol == 'IGMP':
-        for pcap_packet in pcap_packets:
+        for pcap_packet in packets:
             if IP in pcap_packet and pcap_packet.proto ==2 and pcap_packet.src == src_mac_addr:
-                filtered_packets.append(packet)
+                filtered_packets.append(pcap_packet)
 
     elif protocol == 'SSDP':
-        for pcap_packet in pcap_packets:
+        for pcap_packet in packets:
             if 'NOTIFY' in str(pcap_packet) or 'MSEARCH' in str(pcap_packet) and pcap_packet.src == src_mac_addr:
-                filtered_packets.append(packet)
+                filtered_packets.append(pcap_packet)
 
     elif protocol == 'HTTPS':
-        for pcap_packet in pcap_packets:
+        for pcap_packet in packets:
             if TCP in pcap_packet:
                 if pcap_packet[TCP].sport == 443 and TLS in pcap_packet[TCP] and pcap_packet.src== src_mac_addr:
-                    filtered_packets.append(packet)
+                    filtered_packets.append(pcap_packet)
 
     elif protocol == 'MDNS':
-        for pcap_packet in pcap_packets:
+        for pcap_packet in packets:
             if UDP in pcap_packet:
                 if pcap_packet[UDP].sport == 5353 and DNS in pcap_packet and pcap_packet.src == src_mac_addr:
-                    filtered_packets.append(packet)
-    
+                    filtered_packets.append(pcap_packet)
+
+    elif protocol == 'UDP':
+        print(filtered_packets)
+        for pcap_packet in packets:
+            if UDP in pcap_packet:
+                if not DNS in pcap_packet and pcap_packet.src ==src_mac_addr:
+                    filtered_packets.append(pcap_packet) 
+                    
+    elif protocol == 'DNS':
+        for pcap_packet in packets:
+            if UDP in pcap_packet:
+                if (DNS in pcap_packet) and (not pcap_packet.sport ==5353):
+                    filtered_packets.append(pcap_packet)
     else:
-        filtered_packets = list(filter(lambda pcap_packet: protocol in pcap_packet, pcap_packets)) 
-
-
-    start_time = packets[0].packet_time
-    duration = len(packets)
-    end_time = packets[duration-1].packet_time
+        filtered_packets = packets.filter(lambda x: protocol in x and x.src == src_mac_addr)
+    start_time = packets[0].time
+    end_time = packets[-1].time 
+    print(type(start_time))
     timeseries_duration = math.ceil(end_time - start_time)
-    indices = [ math.floor(packet.packet_time - start_time) for packet in filtered_packets]
+    timeseries_duration = 1800
+    print(timeseries_duration)
+    print(protocol)
+    indices = [ math.floor(packet.time - start_time) for packet in filtered_packets]
+    print(indices)
     zeroes = [0] * timeseries_duration
     for index in indices:
-        zeroes[index] = 1
+        if index < 1800:
+            zeroes[index] = 1
     return zeroes
-
 
 
 def get_time_series(packets, protocol,src_mac_addr):
@@ -105,7 +176,14 @@ def get_time_series(packets, protocol,src_mac_addr):
             if UDP in pcap_packet:
                 if pcap_packet[UDP].sport == 5353 and DNS in pcap_packet and pcap_packet.src == src_mac_addr:
                     filtered_packets.append(packet)
-    
+
+    elif protocol == 'UDP':
+        for pcap_packet in packets:
+            pcap_packet = decode_packet(packet.packet)
+            if UDP in pcap_packet:
+                if (not DNS in pcap_packet) and (not pcap_packet.sport == 1900) and (not pcap_packet.dport == 1900):
+                    filtered_packets.append(packet)
+
     else:
         filtered_packets = list(filter(lambda x: protocol in decode_packet(x.packet), list(packets))) 
 
@@ -156,7 +234,6 @@ def get_Ts(timeseries, tolerance=0.1):
     Ts = [ T for T in Ts if calculate_r(timeseries, T)> 0.2 and calculate_r(timeseries,T)<5]
     return Ts
 
-#ARP, IGMP, ICMP,TCP,UDP,  NBNS, DNS, SSDP
 def get_periods(pcap_packets,start, end,src_mac_address):
     periods = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "DNS":None,"SSDP":None,"HTTP":None,"HTTPS":None, "MDNS":None} 
     protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP","HTTP", "HTTPS", "MDNS"]
@@ -165,22 +242,6 @@ def get_periods(pcap_packets,start, end,src_mac_address):
         Ts = get_Ts(timeseries, 0.1)
         periods[protocol] = (timeseries, Ts)
     return periods
-
-def get_characteristic_metric(periods):
-    metrics = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "DNS":None,"SSDP":None, "HTTP":None,"HTTPS":None,"MDNS":None} 
-    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP","DNS", "SSDP", "HTTP","HTTPS","MDNS"]
-    for protocol in protocols:
-        timeseries = periods[protocol][0]
-        Ts = periods[protocol][1]
-        feature_vector = []
-        for T in Ts:
-            r = calculate_r(timeseries, T)
-            rn = calculate_rn(timeseries, T)
-            feature_vector.append((T,r,rn))
-        metrics[protocol] = feature_vector
-    return metrics
-
-
 # periods = { "sub_1":(flow,Ts)}
 
 def get_sub_periods(packets,src_mac_address):
@@ -192,6 +253,27 @@ def get_sub_periods(packets,src_mac_address):
     periods = {"sub_1":sub_one_periods, "sub_2":sub_two_periods,
         "sub_3":sub_three_periods,"all":sub_all_periods}
     return periods 
+
+def get_periods_from_file(pcap_packets,start, end,src_mac_address):
+    periods = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "DNS":None,"SSDP":None,"HTTP":None,"HTTPS":None, "MDNS":None} 
+    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP", "DNS", "SSDP","HTTP", "HTTPS", "MDNS"]
+    for protocol in protocols:
+        timeseries = get_time_series_from_file(pcap_packets, protocol, src_mac_address)[start:end]
+        Ts = get_Ts(timeseries, 0.1)
+        periods[protocol] = (timeseries, Ts)
+    return periods
+# periods = { "sub_1":(flow,Ts)}
+
+def get_sub_periods_file(packets,src_mac_address):
+    sub_one_periods = get_periods_from_file(packets,0,900,src_mac_address)
+    sub_two_periods = get_periods_from_file(packets,450,1450,src_mac_address)
+    sub_three_periods = get_periods_from_file(packets,900,1800,src_mac_address)
+    sub_all_periods = get_periods_from_file(packets,0,1800,src_mac_address)
+
+    periods = {"sub_1":sub_one_periods, "sub_2":sub_two_periods,
+        "sub_3":sub_three_periods,"all":sub_all_periods}
+    return periods 
+
 
 #periods that occur at least in two 
 def filter_periods(periods):
@@ -218,6 +300,20 @@ def filter_periods(periods):
                 Ts.append(T)
         filtered_periods[protocol] = (timeseries,Ts)
     return filtered_periods
+
+def get_characteristic_metric(periods):
+    metrics = {"ARP":None, "IGMP":None, "ICMP":None, "TCP":None, "UDP":None, "DNS":None,"SSDP":None, "HTTP":None,"HTTPS":None,"MDNS":None} 
+    protocols = ["ARP", "IGMP","ICMP", "TCP","UDP","DNS", "SSDP", "HTTP","HTTPS","MDNS"]
+    for protocol in protocols:
+        timeseries = periods[protocol][0]
+        Ts = periods[protocol][1]
+        feature_vector = []
+        for T in Ts:
+            r = calculate_r(timeseries, T)
+            rn = calculate_rn(timeseries, T)
+            feature_vector.append((T,r,rn))
+        metrics[protocol] = feature_vector
+    return metrics
 
 
 def get_fingerprint(periods):
@@ -385,13 +481,3 @@ def print_period(timestamps, l):
         low = l*k
         high =l*k+l
         print(timestamps[low:high])
-
-
-# features from 1 to 16 concerns only periods#
-# features from 17 to 33 concerns also characteristic metric
-# we need bin function
-def create_bin(periods):
-    # 1. filter periods
-    # 2. get metric
-    # 3. for each 
-    pass

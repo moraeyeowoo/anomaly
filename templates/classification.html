@@ -1,0 +1,185 @@
+{% load rest_framework %}
+{% load bootstrap4 %}
+{% bootstrap_css %}
+{% load static %}
+<style type="text/css">
+    .sidenav {
+      height:100%;
+      width:160px;
+      position: fixed;
+      z-index:1;
+      top:0;
+      left:0;
+      background-color:#111;
+      overflow-x: :hidden;
+      padding-top:20px;
+    }
+ 
+    .sidenav a {
+      padding:6px 8px 6px 16px;
+      text-decoration: none;
+      font-size:25px;
+      color: #818181;
+      display:block;
+    }
+ 
+    .sidenav a:hover{
+      color:#f1f1f1;
+    } 
+ 
+    .main{
+      margin-left:160px;
+      padding: 0px 10px;
+    }
+ 
+  </style>
+<html>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script>
+
+$(document).ready(function(){
+
+    $('.classify').on('click', function(event){
+      var tags  = {};
+      
+      $("#TableView tr.item").each(function() {
+          // get id and name 
+          var device_name = $(this).find("input.name").val();
+          var device_id = $(this).find(".pk").text();
+          var device_id = $(this).find(".pk").html();
+
+          var txt = $(this).html();
+          tags[device_id] = device_name;
+      });
+      data ={"labels":tags};
+      var data = JSON.stringify(data);
+      console.log(data)
+      request_url = "/sec_gate/devices/"  
+      $.ajax({
+            type: "POST",
+            url: request_url,
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            data:data
+        }).done(function(response){
+            console.log(response);
+            var myJSON = JSON.stringify(response);
+            alert(myJSON);
+      });
+
+    });
+
+    $('.identify').on('click',function(event){
+
+//      $('#fingerprints').append('<tr><td>my data</td><td>more data</td></tr>');
+      
+      var device_id = $(this).attr('id');
+      console.log(device_id);
+      request_url = "/sec_gate/classification/"+device_id+"/FingerprintDetails/"
+
+      $.ajax({
+        type: "GET",
+        url:request_url
+      }).done(function(response){
+        
+        console.log(response);
+        var i =0;
+        data = response["fingerprints"];
+        for (i; i< data.length; i++)
+        {
+          var line ="<tr>"
+          fp = data[i]["fingerprint"];
+          var j = 0;
+          for( j; j< fp.length;j ++)
+          {
+            line+="<td>"+fp[j]+"</td>"
+          }
+          line+="</tr>";
+          console.log(line);
+          $('#fingerprints').append(line);
+        }
+
+
+      })
+
+    })
+
+});
+</script>
+<body>
+<div class="sidenav">
+  <a href="/sec_gate/classification/panel/train/">Train Model</a>
+  <a href="/sec_gate/classification/panel/">Identify Device</a>
+  <a href="/sec_gate/anomalypanel/">Detect Anomaly</a>
+</div>
+
+  <div class="main">
+
+    <h2><a class="navbar-brand" href="#"><b>List of Connected Devices</b></a></h2>
+<table id="TableView" class="table table-dark">
+  <thead>
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">Mac Address</th>
+      <th scope="col">Device Type</th>
+      <th scope="col">Extract Fingerprint From Files</th>
+      <th scope="col">Label</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for device in devices %}
+      <tr class="item" id={{device.id}}>
+        <td class="pk">{{device.id}}</td>
+        <td>{{device.device_mac_address}}</td>
+        <td id="type{{device.id}}">{{device.device_type}}</td>
+        <td><button type="button" class="btn btn-primary identify" id="{{device.id}}">Fingerprint</button></td>
+        <td><input type="text" id="device_{{device.id}}" class="name"></td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<button type="button" class="btn btn-primary classify">Classify</button>
+<br>
+<br>
+<br>
+
+<div>    
+  <h2><a class="navbar-brand" href="#"><b>Classification Features</b></a></h2>
+  <table font size=10 id="fingerprints" class="table table-dark">
+   <thead font size=8>
+      <tr>
+        <th scope="col">Periodic Protocols</th>
+        <th scope="col">Periodic Protocols < Layer 4</th>
+        <th scope="col">Mean(period)</th>
+        <th scope="col">SD(period)</th>
+        <th scope="col">Single Period Protocols</th>
+        <th scope="col">Multi Period Protocols</th>
+        <th scope="col">5s ~ 29s</th>
+        <th scope="col">30s~ 59s</th>
+        <th scope="col">60s~ 120s</th>
+        <th scope="col">120s~600s</th>
+
+        <th scope="col"># Mean(r) [0.2; 0.7]</th>
+        <th scope="col"># Mean(r) [0.7; 1.0]</th>
+        <th scope="col"># Mean(r) [1.0; 2.0]</th>
+        <th scope="col"># Mean(r) [2.0; infin]</th>
+
+        <th scope="col"># SD(r) [0;0.02]</th>
+        <th scope="col"># SD(r) [0.02;0.1]</th>
+        <th scope="col"># SD(r) [0.1;infin]</th>
+
+        <th scope="col"># Mean(rn) [0.2; 0.7]</th>
+        <th scope="col"># Mean(rn) [0.7; 1.0]</th>
+        <th scope="col"># Mean(rn) [1.0; 2.0]</th>
+        <th scope="col"># Mean(rn) [2.0; infin]</th>
+
+        <th scope="col"># SD(rn) [0;0.02]</th>
+        <th scope="col"># SD(rn) [0.02;0.1]</th>
+        <th scope="col"># SD(rn) [0.1;infin]</th>
+      </tr>
+    </thead>
+  </table>
+</div>
+</div>
+</body>
+</html>

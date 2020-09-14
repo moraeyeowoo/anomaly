@@ -14,4 +14,6 @@ urlpatterns= [
 	path('anomaly/<int:pk>/', views.AnomalyDetail.as_view()),
 	path('anomalypanel/',views.AnomalyPanel.as_view()),
 	path('anomalypanel/detail/<int:pk>/',views.AnomalyDetailPanel.as_view()),
+	path('classification/panel/train/', views.ClassifyPanel.as_view()),
+	path('classification/<int:pk>/FingerprintDetails/', views.FingerprintDetails.as_view()),
 ]

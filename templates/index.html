@@ -87,6 +87,7 @@ $(document).ready(function(){
 </script>
 <body>
 <div class="sidenav">
+    <a href="/sec_gate/classification/panel/train/">Train Model</a>
   <a href="/sec_gate/classification/panel/">Identify Device</a>
   <a href="/sec_gate/anomalypanel/">Detect Anomaly</a>
 </div>
@@ -104,7 +105,6 @@ $(document).ready(function(){
       <th scope="col">Capture Duration</th>
       <th scope="col">Device Type</th>
       <th scope="col">Identify Device</th>
-      <th scope="col">Device Label</th>
       <th scope="col">Details</th>
     </tr>
   </thead>
@@ -118,7 +118,6 @@ $(document).ready(function(){
         <td>{{device.duration}}</td>
         <td id="type{{device.id}}">{{device.device_type}}</td>
         <td><button type="button" class="btn btn-primary identify" id="{{device.id}}">Identify</button></td>
-        <td><input type="text" id="device_{{device.id}}" class="name"></td>
         <td><a href="{{device.id}}" >Details</a></td>
       </tr>
     {% endfor %}

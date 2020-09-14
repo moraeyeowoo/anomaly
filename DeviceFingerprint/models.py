@@ -19,10 +19,9 @@ class PacketData(models.Model):
 	benign = models.BooleanField(default=True)
 	direction = models.IntegerField(null=True)
 
-class TypeFingerprint(models.Model):
+class TypeFingerprints(models.Model):
 	device = models.ForeignKey(Device,related_name='type_fingerprint',on_delete=models.CASCADE)
-	flow = ArrayField(models.IntegerField())
-	fingerprint = ArrayField(models.IntegerField())
+	fingerprint = ArrayField(models.FloatField(),24)
 
 class AnomalyFingerprint(models.Model):
 	device = models.ForeignKey(Device,related_name='anomaly_fingerprint',on_delete=models.CASCADE)

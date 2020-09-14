@@ -34,3 +34,8 @@ class DeviceModelsSerializer(serializers.ModelSerializer):
 	class Meta:
 		model = DeviceModels
 		fields = ['internal_model_id','model_name']
+
+class TypeFingerprintSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = TypeFingerprints
+		fields = ['device', 'fingerprint']

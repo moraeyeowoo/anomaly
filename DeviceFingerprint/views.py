@@ -15,6 +15,17 @@ from Analyze.classification import *
 from sklearn.neighbors import KNeighborsClassifier
 import pickle
 
+
+"""
+f dlink1 : b0:c5:54:25:1f:b6
+
+ edimax1 : 80:1f:02:d6:d5:5d
+
+ sensor : "c4:12:f5:1c:8c:f1"
+
+ xiaomi : "78:11:dc:11:72:af"
+"""
+
 def decode_packet(utf8_encoded_packet):
 	import base64
 	# decode to base 64
@@ -25,6 +36,38 @@ def decode_packet(utf8_encoded_packet):
 	packet = Ether(bytes_encoded)
 	return packet
 
+
+class FingerprintDetails(APIView):
+
+	def get(self, request, pk):
+		# extract fingerprint for a given id
+		device = Device.objects.get(pk=pk)
+		mac_address =device.device_mac_address
+
+		print(mac_address)
+		fingerprints = TypeFingerprints.objects.filter(device=device)
+		print(fingerprints)
+		if len(fingerprints) == 0:
+			PATH = "./data/train"
+			pcap_packet_list = get_pcap_packets_from_directory(PATH)
+
+			# if fingerprint empty, extract from files
+			device_pcap_packet_list = get_packets_by_mac(pcap_packet_list, mac_address)
+			fps = get_fingerprints_by_mac(device_pcap_packet_list, mac_address)
+
+			#TypeFingerprints
+			for fp in fps:
+				serializer = TypeFingerprintSerializer(mac_address, fps)
+				if not serializer.is_valid():
+					content = {"error":"could not save fingerprint"}
+					return Response(content, status = status.HTTP_404_NOT_FOUND)
+				serializer.save()
+
+		serializer = TypeFingerprintSerializer(fingerprints, many=True)
+		content = {"fingerprints":serializer.data}
+		return Response(content, status = status.HTTP_200_OK)
+
+
 class DeviceList(APIView):
 
 	def get(self, request):
@@ -32,96 +75,70 @@ class DeviceList(APIView):
 		serializer = DeviceSerializer(devices,many=True)
 		return Response(serializer.data, status = status.HTTP_200_OK)		
 
-	def post(self, request):
-		"""
-		dlink cam 1, dlink2 sensor 2, xiaomi 3, edimax 4 
-		"""
 
-		labels = request.data["labels"]
-		print(labels)
+	def post(self, request):
+
+		# device pk to id 
 		device_map = {}
 		knn_map = {}
 		device_type_id = 0
 
-		device_models = DeviceModels.objects.all()
+		labels = request.data["labels"]
+		# clear trained data 
+		device_models = DeviceModels.objects.all() 
 		for device_model in device_models:
 			device_model.delete()
 
+		# query fingerprints from database 
+		internal_model_id = 0
 		for key in labels:
+			# get name and pk from request, update device type 
 			device_id = int(key)
 			device_name = labels[key]
+			
+			print(device_id)
 			print(device_name)
-			# record the name of the device in database 
 			device = Device.objects.get(pk=device_id)
 			device.device_type = device_name
-			device.save()
+			#device.save()
 
-			packets = device.packet_set.filter(direction=0)
-			if len(packets) < 100:
-				continue
-
-			if not (device_name == None or device_name ==""):
-				device_map[device_id] = device_type_id
-				print(device_name)
-				data = {"internal_model_id": device_type_id,"model_name": device_name}
-				print(data)
-				serializer = DeviceModelsSerializer(data=data)
-				serializer.is_valid()
-				print("errors -----------------------")
-				print(serializer.errors)
-				print("-------------------------")
+			# save ID -> fingerprints to KNN  Map
+			# save ID -> Name to device_map 
+			data = {"internal_model_id":internal_model_id, "model_name": device_name}
+			serializer = DeviceModelsSerializer(data=data)
+			print(serializer.is_valid())
+			print(serializer.errors)
+			if serializer.is_valid():
 				serializer.save()
-				device_type_id+=1
 
-		# train KNN
-		print(device_map)
+			fingerprints = TypeFingerprints.objects.filter(device = device.pk)
+			fingerprints = [fp.fingerprint for fp in fingerprints]
+
+			knn_map[internal_model_id] = fingerprints
+			internal_model_id+=1
+
 		
-		print("Obtaining fingerprint from device packets")
-		for key in device_map:
-			device = Device.objects.get(pk=key)
-			packets = device.packet_set.filter(direction=0)
-			packets = list(packets)
-			packets.sort(key = lambda x: x.packet_time)
-			if len(packets) > 3000:
-				packets = packets[1500:]
-			device_type_id = device_map[key]
-			print(key)
-			print(device_type_id)
-			fingerprints = []
-			if not len(packets) == 0:
-				device_mac = device.device_mac_address
-				sub_periods = get_sub_periods(packets, device_mac)
-				filtered_periods = filter_periods(sub_periods)
-				fingerprint = get_fingerprint(filtered_periods)	
-				knn_map[device_type_id] = fingerprint
-				print(fingerprint)
-
-		# train the model here 
-		print("Training K Nearest Neighborhood Model")
 		X = []
 		y = []
 		for key in knn_map:
-			y.append(key)
-			y.append(key)
-			y.append(key)
-			fp = knn_map[key]
-			X.append(fp)
-			X.append(fp)
-			X.append(fp)
+			for fp in knn_map[key]:
+				X.append(fp)
+				y.append(key)
 
 		print(X)
 		print(y)
-
 		# train Knn model
 		neigh = KNeighborsClassifier(n_neighbors=5)
 		neigh.fit(X, y)
-		
-		print(neigh)
+			
 		knnPickle = open('knn_models/classifier', 'wb') 
 		pickle.dump(neigh, knnPickle)   
 		# save model 
-		print("Training Complete")
-		return Response(status = status.HTTP_200_OK)
+		content = {"message":"Classification Model Trained"}
+		return Response(content, status = status.HTTP_200_OK)
+
+
+
 
 class DeviceDetail(APIView):
 	
@@ -244,6 +261,16 @@ class ControlPanel(generics.RetrieveAPIView):
 		data = serializer.data
 		devicelist = {"devices":data}
 		return Response(devicelist, template_name='index.html')
+
+
+class ClassifyPanel(generics.RetrieveAPIView):
+	renderer_classes = [TemplateHTMLRenderer]
+	def get(self, request):
+		devices = Device.objects.all()
+		serializer = DeviceSerializer(devices,many=True)
+		data = serializer.data
+		devicelist = {"devices":data}
+		return Response(devicelist, template_name='classification.html')
 
 
 class AnomalyPanel(generics.RetrieveAPIView):
